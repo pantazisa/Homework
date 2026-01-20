@@ -226,7 +226,6 @@ void ColoringAlgorithmCUDA(Graph* g) {
     cudaFree(d_labels); cudaFree(d_offsets); cudaFree(d_edges); cudaFree(d_changed);
 }
 
-// --- 3. MAIN (ORIGINAL PRINTS RETAINED) ---
 
 int main(int argc, char* argv[]) {
     if (argc < 2) { printf("Usage: %s <file.mtx>\n", argv[0]); return 1; }
