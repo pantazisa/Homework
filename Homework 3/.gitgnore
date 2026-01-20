@@ -22,3 +22,6 @@ benchmarks.csv
 # --- OS temporary files ---
 .DS_Store
 Thumbs.db
+
+# Windows metadata
+*:Zone.Identifier
