@@ -1,0 +1,24 @@
+# --- Compiling ---
+cc_cuda
+*.o
+*.obj
+*.exe
+
+# --- Large Data Files (DO NOT UPLOAD THESE) ---
+# These are too large for GitHub and will cause errors
+*.bin
+*.mtx
+mawi*
+com-Friendster*
+
+# --- Project Results ---
+benchmarks.csv
+
+# --- IDE Settings ---
+.vscode/
+.vs/
+.idea/
+
+# --- OS temporary files ---
+.DS_Store
+Thumbs.db
