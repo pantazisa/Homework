@@ -19,3 +19,6 @@ benchmark: $(TARGET)
 	@for i in $$(seq 1 10); do \
 		./$(TARGET) com-Friendster/com-Friendster.mtx; \
 	done
+	@fore i in $$(seq 1 10); do \
+		./$(TARGET) mawi_201512020330.mtx
+	done
