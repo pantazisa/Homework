@@ -1,0 +1,28 @@
+# Compiled binaries (built in the project root by the Makefile)
+/crack_astar
+/crack_astar_pthreads
+/crack_astar_omp
+/crack_astar_opencilk
+/crack_astar_cuda
+/crack_astar_hybrid
+
+# Object files
+*.o
+*.obj
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+
+# Editor / OS
+.vscode/
+.DS_Store

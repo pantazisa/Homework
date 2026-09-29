@@ -1,0 +1,368 @@
+\documentclass[11pt,a4paper]{article}
+
+% ------------------------------------------------------------------
+% Packages
+% ------------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\geometry{margin=2.4cm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{siunitx}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{float}
+
+
+% ------------------------------------------------------------------
+% Styling
+% ------------------------------------------------------------------
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codekw}{RGB}{0,0,180}
+\definecolor{codecmt}{RGB}{0,128,0}
+
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codekw}\bfseries,
+    commentstyle=\color{codecmt}\itshape,
+    breaklines=true,
+    frame=single,
+    numbers=none,
+    showstringspaces=false,
+    language=C,
+    captionpos=b,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{A* Password Cracker}
+\rhead{Parallel \& Distributed Systems}
+\cfoot{\thepage}
+
+\sisetup{round-mode=places,round-precision=3}
+
+% ------------------------------------------------------------------
+% Title
+% ------------------------------------------------------------------
+\title{\textbf{Parallel A* Password Recovery} \\[4pt]
+       \large Sequential, Pthreads, OpenMP, OpenCilk, CUDA and Hybrid CPU+GPU Implementations}
+\author{Parallel \& Distributed Systems (Homework 4) \\
+    \texttt{Apostolos Pantazis (10910)}}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{abstract}
+This report presents an MD5 password-recovery tool formulated as an \textbf{A* state-space search}
+over a prefix tree and parallelized across five paradigms: POSIX threads, OpenMP, OpenCilk,
+CUDA, and a Hybrid Pthreads\,+\,CUDA design. The search uses a uniform cost model over a fixed
+76-symbol alphabet with a bounded beam to cap memory. We describe the algorithmic formulation,
+the parallelization strategy of each implementation, and an experimental evaluation on a 28-core
+host equipped with an NVIDIA GeForce RTX~4070~Ti~SUPER. All implementations recover length-4
+targets correctly; the Hybrid design additionally succeeds on the harder length-5 space where the
+CPU-only variants exhaust their search budget.
+\end{abstract}
+
+% ==================================================================
+\section{Problem Formulation}
+% ==================================================================
+Given the MD5 digest of an unknown password of known length $L$, the goal is to recover the
+plaintext. Because cryptographic hashes exhibit the \emph{avalanche effect}, there is no continuous
+notion of ``distance'' between a partial candidate's hash and the target. We therefore do not use
+the hash to guide the search; instead we treat the problem as a graph search over a prefix tree and
+use A* as a systematic, memory-bounded traversal.
+
+\paragraph{State-space model.}
+\begin{itemize}[nosep]
+  \item \textbf{State:} a candidate prefix string $s$ at depth $d$.
+  \item \textbf{Alphabet:} a fixed 76-symbol set --- lowercase, uppercase, digits, and the symbols
+        \verb|!@#$%^&*()-_=+|.
+  \item \textbf{Path cost:} $g(n) = d \cdot \text{EDGE\_COST}$, with $\text{EDGE\_COST}=1.0$.
+  \item \textbf{Heuristic:} $h(n) = (L - d)\cdot \text{EDGE\_COST}$ (remaining depth; admissible).
+  \item \textbf{Evaluation:} $f(n) = g(n) + h(n) = L$, uniform across all candidates of the target
+        length.
+  \item \textbf{Goal test:} MD5 verification is performed \emph{only} when a candidate reaches
+        depth $L$ (a leaf).
+\end{itemize}
+
+Since $f$ is uniform, A* here behaves as a systematic frontier expansion. To bound memory we apply
+\textbf{beam trimming}: when the priority queue exceeds \texttt{BEAM\_CAP} $=3\,000\,000$ states, a
+\texttt{quickselect} keeps the best \texttt{BEAM\_KEEP} $=1\,200\,000$ and re-heapifies. There is
+\textbf{no brute-force fallback and no training} of any kind: a case reported as \emph{not found} is
+a genuine failure within the search's own node/time budget.
+
+% ==================================================================
+\section{Software Architecture}
+% ==================================================================
+The project shares a common core across all targets:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{File} & \textbf{Role} \\
+\midrule
+\texttt{astar\_heap.\{h,c\}}     & Min-heap priority queue + beam-trim (quickselect + heapify). \\
+\texttt{md5.\{h,c\}}             & Standalone RFC~1321 MD5 for CPU targets. \\
+\texttt{crack\_astar.c}          & Sequential baseline. \\
+\texttt{crack\_astar\_pthreads.c}& POSIX threads, atomic dynamic task queue. \\
+\texttt{crack\_astar\_omp.c}     & OpenMP dynamic loop scheduling. \\
+\texttt{crack\_astar\_opencilk.c}& OpenCilk \texttt{cilk\_for} work-stealing. \\
+\texttt{crack\_astar\_cuda.cu}   & CPU-driven heap + GPU batch leaf hashing. \\
+\texttt{crack\_astar\_hybrid.cu} & Pthreads + per-thread CUDA streams. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Priority queue.} A binary min-heap ordered by $f$ supports \texttt{push} and \texttt{pop}
+in $O(\log n)$. Beam trimming uses \texttt{quickselect} to partition the best $k$ states in expected
+$O(n)$ before re-heapifying, avoiding a full $O(n\log n)$ sort.
+
+% ==================================================================
+\section{Parallelization Strategies}
+% ==================================================================
+
+\subsection{Pthreads}
+The root search space is partitioned into two-character prefix tasks ($76^2 = 5\,776$ independent
+sub-searches for $L\ge 2$). Worker threads claim tasks dynamically through an atomic counter
+(\texttt{atomic\_fetch\_add}), which provides natural load balancing. Each thread owns a
+\emph{private} priority queue, eliminating lock contention on the heap. An atomic flag signals early
+termination the moment any thread finds the match.
+
+\subsection{OpenMP}
+Uses the same 5\,776-task decomposition, distributed with
+\lstinline|#pragma omp parallel for schedule(dynamic, 1)|. A per-thread queue is preallocated and
+reused (indexed by \texttt{omp\_get\_thread\_num()}) to avoid repeated heap allocation.
+
+\subsection{OpenCilk}
+Exposes the sub-tasks to the work-stealing runtime with \texttt{cilk\_for}; each iteration runs an
+independent A* traversal with its own local heap. Worker count is controlled via
+\texttt{CILK\_NWORKERS} or \texttt{--threads}.
+
+\subsection{CUDA}
+The CPU performs the pointer-based traversal and heap operations while completed leaf candidates
+accumulate in a batch buffer. When the batch fills (or a node threshold is reached) the candidates
+are copied to the GPU and hashed in parallel by an optimized MD5 kernel. Here \texttt{--threads}
+denotes the GPU \emph{batch size}, not a CPU thread count.
+
+\subsection{Hybrid Pthreads + CUDA}
+Combines CPU dynamic task distribution with GPU batch execution. Each POSIX worker is assigned
+(i)~its own CUDA stream (\texttt{cudaStreamCreate}) for concurrent GPU execution, (ii)~pinned host
+memory (\texttt{cudaHostAlloc}) for DMA transfers, and (iii)~private device buffers/flags to avoid
+device-side synchronization.
+
+% ==================================================================
+\section{Build \& Run}
+% ==================================================================
+\begin{lstlisting}[language=bash]
+make all                                   # sequential, pthreads, openmp
+make crack_astar_opencilk CILK_CC=/opt/opencilk/bin/clang
+make crack_astar_cuda   NVCC_ARCH=sm_89    # match GPU compute capability
+make crack_astar_hybrid NVCC_ARCH=sm_89
+
+./crack_astar 4 PtYg
+./crack_astar_pthreads 4 PtYg --threads 8
+./crack_astar_hybrid   5 yJuq\) --threads 16 --batch-size 262144
+\end{lstlisting}
+
+% ==================================================================
+\section{Experimental Setup}
+% ==================================================================
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+CPU        & 28 logical cores (WSL2, Linux 6.6) \\
+GPU        & NVIDIA GeForce RTX 4070 Ti SUPER (\texttt{sm\_89}) \\
+Compilers  & \texttt{gcc -O2 -std=c11}; OpenCilk \texttt{clang}; \texttt{nvcc -O3} \\
+Alphabet   & 76 symbols; \texttt{EDGE\_COST}=1.0 \\
+Beam       & \texttt{BEAM\_CAP}=3M, \texttt{BEAM\_KEEP}=1.2M \\
+Test set   & six random length-4 targets; four length-5 (exploratory) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Timings are wall-clock seconds for the A* phase. Because thread task order affects which leaf is
+reached first, node counts vary slightly across thread counts --- this is inherent to a nondeterministic
+parallel frontier and does not affect correctness.
+
+% ==================================================================
+\section{Results}
+% ==================================================================
+
+\subsection{CPU scaling on length-4 targets}
+Table~\ref{tab:len4} lists representative wall-clock times. Sequential timings vary strongly with the
+target because A* frontier ordering reaches some targets much sooner than others. The Pthreads and
+OpenMP variants scale near-linearly with thread count; OpenCilk is fastest at low thread counts due to
+its lightweight work-stealing, but its timing is noisier because stealing changes which leaves are
+explored first.
+
+\begin{table}[h]
+\centering
+\caption{Wall-clock time (s) on length-4 targets. \textit{seq} is single-threaded;
+parallel columns use the stated thread count. CUDA uses batch size $262\,144$.}
+\label{tab:len4}
+\small
+\begin{tabular}{@{}lrrrrrrr@{}}
+\toprule
+\textbf{Target} & \textbf{seq} & \textbf{pth-8} & \textbf{pth-32} & \textbf{omp-8} & \textbf{omp-32} & \textbf{cilk-8} & \textbf{cuda} \\
+\midrule
+PtYg & 1.593 & 0.233 & 0.085 & 0.524 & 0.157 & 0.146 & 0.126 \\
+j\&mU & 2.987 & 0.058 & 0.022 & 0.122 & 0.041 & 0.035 & 0.404 \\
+=h\#B & 0.176 & 0.422 & 0.154 & 0.943 & 0.298 & 0.211 & 0.818 \\
+el31 & 3.375 & 0.024 & 0.010 & 0.052 & 0.018 & 0.084 & 1.021 \\
+iEl( & 3.181 & 0.049 & 0.020 & 0.107 & 0.040 & 0.170 & 1.175 \\
+2h-p & 1.084 & 0.301 & 0.111 & 0.684 & 0.211 & 0.097 & 1.255 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Pthreads speedup}
+Table~\ref{tab:speedup} reports the Pthreads speedup over its own single-thread run for the
+\texttt{PtYg} target. Scaling is close to ideal up to 8 threads and continues improving to 32,
+reflecting the coarse-grained, contention-free task decomposition.
+
+\begin{table}[h]
+\centering
+\caption{Pthreads self-relative speedup for target \texttt{PtYg}
+(baseline: pthreads with 1 thread, 1.863\,s).}
+\label{tab:speedup}
+\small
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+\textbf{Threads} & \textbf{Time (s)} & \textbf{Speedup} & \textbf{Efficiency} \\
+\midrule
+1  & 1.863 & 1.00$\times$  & 100\% \\
+2  & 0.928 & 2.01$\times$  & 100\% \\
+4  & 0.457 & 4.07$\times$  & 102\% \\
+8  & 0.233 & 8.01$\times$  & 100\% \\
+16 & 0.133 & 14.05$\times$ & 88\% \\
+32 & 0.085 & 21.88$\times$ & 68\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hybrid: length-4 sweeps}
+On length-4 targets the Hybrid design is competitive with the best CPU variants, with a sweet spot
+around 4--8 threads and batch size $262\,144$ (Table~\ref{tab:hyb4}). Beyond that, GPU launch
+overhead and increased frontier exploration erode the benefit.
+
+\begin{table}[h]
+\centering
+\caption{Hybrid thread sweep, batch size $65\,536$, target \texttt{PtYg} (length 4).}
+\label{tab:hyb4}
+\small
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+\textbf{Threads} & \textbf{Time (s)} & \textbf{Nodes} & \textbf{GPU batches} \\
+\midrule
+1  & 0.234 & 242\,005 & 277 \\
+2  & 0.123 & 241\,799 & 276 \\
+4  & 0.078 & 243\,983 & 279 \\
+8  & 0.063 & 249\,377 & 283 \\
+16 & 0.064 & 258\,052 & 289 \\
+32 & 0.107 & 444\,744 & 521 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hybrid: length-5 (headline finding)}
+Length-5 is the key result. Every CPU-only implementation exhausts its search budget at length~5
+(100\% failure), whereas the Hybrid CPU+GPU design \textbf{recovers all four exploratory targets}.
+Table~\ref{tab:hyb5} shows the batch-size sweep at 16 threads: larger batches amortize GPU launch
+overhead and cut both time and total kernel launches sharply.
+
+\begin{table}[h]
+\centering
+\caption{Hybrid batch-size sweep, 16 threads, length-5 targets. All \emph{found}.}
+\label{tab:hyb5}
+\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\textbf{Target} & \textbf{Batch} & \textbf{Time (s)} & \textbf{Nodes} & \textbf{GPU batches} \\
+\midrule
+\multirow{4}{*}{yJuq)}
+ & 16\,384   & 3.315 & 17\,026\,048 & 77\,935 \\
+ & 65\,536   & 1.293 & 11\,670\,923 & 13\,350 \\
+ & 262\,144  & 0.953 & 11\,012\,055 & 3\,143 \\
+ & 1\,048\,576 & 0.973 & 11\,019\,354 & 780 \\
+\midrule
+\multirow{4}{*}{ntG0y}
+ & 16\,384   & 1.764 & 8\,776\,386 & 40\,175 \\
+ & 65\,536   & 0.833 & 7\,333\,648 & 8\,386 \\
+ & 262\,144  & 0.541 & 6\,040\,837 & 1\,721 \\
+ & 1\,048\,576 & 0.594 & 6\,038\,149 & 424 \\
+\midrule
+\multirow{4}{*}{(K5cq}
+ & 16\,384   & 6.664 & 31\,718\,287 & 145\,193 \\
+ & 65\,536   & 3.753 & 31\,474\,060 & 36\,011 \\
+ & 262\,144  & 2.692 & 31\,416\,671 & 8\,980 \\
+ & 1\,048\,576 & 2.581 & 31\,481\,708 & 2\,245 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ==================================================================
+\section{Discussion}
+% ==================================================================
+\begin{itemize}[nosep]
+  \item \textbf{Decomposition quality.} The 5\,776 two-character prefix tasks give plenty of
+        parallel slack for a 28-core host, and per-thread private heaps remove the main contention
+        point, which is why Pthreads scales near-ideally to 8 threads.
+  \item \textbf{Runtime differences.} OpenMP is consistently a bit slower than Pthreads at the same
+        thread count due to scheduling overhead. OpenCilk wins at low thread counts but its
+        work-stealing makes the number of expanded nodes --- and therefore time --- less predictable.
+  \item \textbf{GPU trade-off.} Pure CUDA rarely beats a well-parallelized CPU at length~4 because
+        the bottleneck is CPU-side frontier expansion, not hashing. The GPU only pays off when the
+        leaf-verification volume is large, which is exactly the length-5 regime.
+  \item \textbf{Batch size matters.} For the Hybrid design, small batches ($16\,384$) drown in
+        kernel-launch overhead; batches of $262\,144$--$1\,048\,576$ minimize launches and give the
+        best time.
+  \item \textbf{Oversubscription.} At 32 threads several Hybrid cases show a jump in node count and
+        time --- contention for the single GPU plus frontier divergence outweighs added CPU parallelism.
+\end{itemize}
+
+% ==================================================================
+\section{Verification}
+% ==================================================================
+Automated functional tests (\texttt{run\_verification\_tests.sh}) confirm every built
+implementation recovers the reference target \texttt{PtYg}. All six binaries compile cleanly under
+\texttt{-Wall -Wextra} with no warnings and produce the correct plaintext.
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Implementation} & \textbf{Result} \\
+\midrule
+Sequential & PASS --- recovered \texttt{PtYg} \\
+Pthreads   & PASS --- recovered \texttt{PtYg} \\
+OpenMP     & PASS --- recovered \texttt{PtYg} \\
+OpenCilk   & PASS --- recovered \texttt{PtYg} \\
+CUDA       & PASS --- recovered \texttt{PtYg} \\
+Hybrid     & PASS --- recovered \texttt{PtYg} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ==================================================================
+\section{Conclusion}
+% ==================================================================
+All six implementations are correct and reproducible. On length-4 targets the CPU parallel variants
+achieve near-ideal speedups (Pthreads reaches $\approx 22\times$ at 32 threads), while pure GPU
+offloading is limited by CPU-side frontier expansion. The decisive result is at length~5: only the
+Hybrid Pthreads\,+\,CUDA design, combining dynamic CPU task distribution with per-thread CUDA
+streams and large GPU batches, extends the reach of the search into a space where every CPU-only
+implementation fails. This confirms that heterogeneous CPU+GPU cooperation --- not GPU offloading
+alone --- is what unlocks the harder search regime.
+
+\end{document}
