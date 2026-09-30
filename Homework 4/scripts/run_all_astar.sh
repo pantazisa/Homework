@@ -28,11 +28,7 @@ TEST_CASES=(
     "random_f:4:2h-p"      # ~9.05s -- hardest confirmed case, best for showing speedup
 )
 
-# Extended thread range: 1/2/4/8 alone only shows scaling up to a typical
-# laptop's core count. Pushing to 16/32 lets you see the point where
-# speedup plateaus (usually around your machine's physical core count)
-# and where hyperthreading/oversubscription effects start to show up
-# past that -- both are worth discussing explicitly in a report.
+# Thread counts and GPU batch sizes for benchmarks
 THREAD_COUNTS=(1 2 4 8 16 32)
 GPU_BATCH_SIZES=(65536 262144 1048576 4194304)
 

@@ -33,9 +33,7 @@ LENGTH4_CASES=(
     "random_f:4:2h-p"
 )
 
-# Length 5: NEW, genuinely random, NOT pre-verified -- this is the actual
-# experiment. Every other implementation failed 100% of the time (0/3
-# tested) at this length without training.
+# Length 5 test cases
 LENGTH5_CASES=(
     "len5_a:5:yJuq)"
     "len5_b:5:ntG0y"
@@ -46,10 +44,9 @@ LENGTH5_CASES=(
 THREAD_COUNTS=(1 2 4 8 16 32)
 BATCH_SIZES=(16384 65536 262144 1048576)
 
-# Fixed values used for the sweep that ISN'T varying in a given phase.
+# Fixed baseline parameters for parameter sweeps
 FIXED_BATCH_SIZE=65536
-FIXED_THREADS=16   # a reasonable middle value; adjust based on what the
-                    # thread sweep phase shows as a good operating point
+FIXED_THREADS=16
 
 echo "Building hybrid implementation..."
 if [ -f Makefile ] && grep -q "crack_astar_hybrid" Makefile 2>/dev/null; then

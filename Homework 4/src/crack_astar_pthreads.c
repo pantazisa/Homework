@@ -1,26 +1,13 @@
 /*
  * crack_astar_pthreads.c
- * -----------------------
- * POSIX Threads (Pthreads) parallel implementation of the A* password cracker.
+ * Pthreads parallel implementation of A* password recovery.
  *
- * PARALLELIZATION STRATEGY:
- *   Employs a dynamic task queue of 2-character root prefixes (up to
- *   76^2 = 5,776 sub-tasks). Worker threads dynamically claim prefixes
- *   using an atomic counter (atomic_fetch_add) and execute an independent
- *   A* search using thread-local min-heaps. This avoids lock contention
- *   on the priority queue while maintaining dynamic load balancing.
- *   Early termination across threads is coordinated via an atomic flag.
- *
- * USAGE:
- *   ./crack_astar_pthreads <length> <target_password> [--threads N]
- *   Defaults to the number of logical CPUs if --threads is omitted.
+ * Uses dynamic 2-character prefix task scheduling with thread-local min-heaps.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <math.h>
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -55,16 +42,8 @@ typedef struct {
     double astar_elapsed;
 } ThreadArg;
 
-/* Dynamic task queue: TOTAL_TASKS = g_charset_len^2 independent 2-character
- * root prefixes (76x76=5776 for the full alphabet), claimed one at a time
- * via an atomic fetch-add. This replaces the earlier design's STATIC
- * first-character-only partitioning (max 76 possible slices, and if the
- * real target's first character happened to fall in one thread's slice,
- * that thread did all the work while others sat idle once their own
- * slice was exhausted). Splitting by two characters instead of one gives
- * 5776 independent tasks -- enough for far more threads than 76 to stay
- * genuinely busy, and any single "unlucky" task is a much smaller slice
- * of the total work than an unlucky FIRST-character slice used to be. */
+/* Dynamic task queue: 2-character root prefixes claimed dynamically
+ * via atomic_fetch_add. */
 static atomic_int g_next_task = 0;
 static atomic_ullong g_total_nodes_expanded = 0;
 static struct timespec g_search_start;
@@ -205,9 +184,6 @@ int main(int argc, char **argv) {
         long detected = sysconf(_SC_NPROCESSORS_ONLN);
         num_threads = (detected > 0) ? (int)detected : 1;
     }
-    /* No longer clamped to g_charset_len (76) -- with 5776 dynamic
-     * 2-character tasks (for length>=2) instead of 76 static
-     * first-character slices, far more threads can stay genuinely busy. */
     if (num_threads < 1) num_threads = 1;
 
     unsigned char target_digest[16];
@@ -217,7 +193,7 @@ int main(int argc, char **argv) {
 
     printf("Password len  : %d\n", length);
     printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
-    printf("Cost model    : uniform (no training)\n");
+    printf("Cost model    : uniform\n");
     printf("Target MD5    : %s\n", target_hex);
     printf("Threads       : %d\n", num_threads);
     printf("Design        : dynamic 2-character task queue (%d tasks, atomic claim)\n",

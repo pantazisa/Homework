@@ -1,26 +1,13 @@
 /*
  * crack_astar_omp.c
- * ------------------
- * OpenMP parallel implementation of the A* password cracker.
+ * OpenMP parallel implementation of A* password recovery.
  *
- * PARALLELIZATION STRATEGY:
- *   Decomposes the search space into independent 2-character root prefix
- *   sub-tasks (up to 76^2 = 5,776 tasks). Tasks are dynamically distributed
- *   among threads using OpenMP's `#pragma omp parallel for schedule(dynamic, 1)`.
- *   Each thread maintains its own reusable priority queue (Heap), avoiding
- *   lock contention. Early exit upon finding the target hash is coordinated
- *   via an atomic flag.
- *
- * USAGE:
- *   ./crack_astar_omp <length> <target_password> [--threads N]
- *   Defaults to the number of logical CPUs if --threads is omitted.
+ * Uses dynamic 2-character prefix task scheduling with thread-local min-heaps.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <math.h>
 #include <time.h>
 #include <unistd.h>
 #include <omp.h>
@@ -60,11 +47,7 @@ typedef struct {
 static Heap *g_thread_heaps;
 static struct timespec g_search_start;
 
-/* Processes exactly ONE 2-character (or 1-character, for length==1) task.
- * Called from inside the schedule(dynamic,1) loop below -- OpenMP itself
- * handles dynamically handing out task indices to whichever thread is
- * next idle, so no explicit atomic counter is needed here (unlike the
- * Pthreads version, which doesn't have an equivalent built-in construct). */
+/* Processes a single root prefix task. */
 static void process_task(ThreadArg *arg, int task_id, int root_depth) {
     int length = arg->length;
     int tid = omp_get_thread_num();
@@ -174,9 +157,6 @@ int main(int argc, char **argv) {
         long detected = sysconf(_SC_NPROCESSORS_ONLN);
         num_threads = (detected > 0) ? (int)detected : 1;
     }
-    /* No longer clamped to g_charset_len (76) -- with 5776 dynamic
-     * 2-character tasks (for length>=2) instead of 76 static
-     * first-character slices, far more threads can stay genuinely busy. */
     if (num_threads < 1) num_threads = 1;
 
     unsigned char target_digest[16];
@@ -189,7 +169,7 @@ int main(int argc, char **argv) {
 
     printf("Password len  : %d\n", length);
     printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
-    printf("Cost model    : uniform (no training)\n");
+    printf("Cost model    : uniform\n");
     printf("Target MD5    : %s\n", target_hex);
     printf("Threads       : %d\n", num_threads);
     printf("Design        : dynamic 2-character task queue (%d tasks, schedule(dynamic,1))\n", total_tasks);

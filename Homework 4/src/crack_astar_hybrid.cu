@@ -1,24 +1,6 @@
 /*
  * crack_astar_hybrid.cu
- * ----------------------
- * Hybrid Pthreads + CUDA parallel implementation of the A* password cracker.
- *
- * ARCHITECTURE & LOAD BALANCING:
- *   - CPU (Pthreads): Explores the search space via dynamic task queues. Sub-tasks
- *     are generated for 2-character root prefixes (up to 76^2 = 5,776 tasks) and
- *     claimed dynamically by threads via atomic_fetch_add. Each thread maintains
- *     its own independent local min-heap to eliminate lock contention.
- *   - GPU (CUDA): Accelerates candidate verification by offloading MD5 evaluations.
- *     Each thread is assigned dedicated GPU resources:
- *       1. Its own independent CUDA stream, allowing concurrent kernel executions
- *          and overlapping memory transfers across threads.
- *       2. Pinned host memory (cudaHostAlloc) and private device buffers.
- *       3. A dedicated device found flag, avoiding device-side synchronization.
- *
- * USAGE:
- *   ./crack_astar_hybrid <length> <target_password> [--threads N] [--batch-size N]
- *   --threads N     : Number of worker threads (default: hardware concurrency).
- *   --batch-size N  : GPU batch size per thread (default: 65,536 candidates).
+ * Hybrid Pthreads + CUDA parallel implementation of A* password recovery.
  */
 
 #include <cstdio>
@@ -63,21 +45,7 @@ static std::atomic<int> g_found_flag(0);
 static char g_found_password[MAX_LEN + 1];
 static pthread_mutex_t g_result_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-/* ---------------------------------------------------------------------
- * CPU-side priority queue (same design used throughout this project).
- * --------------------------------------------------------------------- */
-
-/* ---------------------------------------------------------------------
- * GPU batch-testing kernel. d_target_digest is the one piece of truly
- * read-only, shared-across-all-threads data (the target hash itself
- * never changes during a run), so it's the one thing safely placed in
- * __constant__ memory. Everything else that could differ between
- * threads' concurrent kernel launches (the batch buffer, the found
- * flag/index) is passed as a per-call pointer into THIS thread's own
- * device allocation -- never a shared __device__ global -- so two
- * threads' kernels running concurrently on different streams never
- * touch the same device memory.
- * --------------------------------------------------------------------- */
+/* GPU batch-testing kernel */
 #define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
 
 __constant__ unsigned char d_target_digest[16];
@@ -211,11 +179,7 @@ static int flush_batch(ThreadArg *arg, int batch_count, int cand_len) {
     int found_flag_host;
     CUDA_CHECK(cudaMemcpyAsync(&found_flag_host, arg->d_found_flag, sizeof(int),
                                 cudaMemcpyDeviceToHost, arg->stream));
-    /* Must synchronize before reading found_flag_host on the host. This
-     * is the one necessary sync point per batch -- streams let DIFFERENT
-     * threads' async work overlap with each other, but within one
-     * thread's own sequence of operations, this sync is unavoidable
-     * (we need the result before deciding whether to continue). */
+    /* Synchronize stream before checking result */
     CUDA_CHECK(cudaStreamSynchronize(arg->stream));
 
     if (found_flag_host) {
@@ -238,14 +202,7 @@ static void *worker(void *arg_ptr) {
     CUDA_CHECK(cudaMalloc(&arg->d_batch_buf, arg->batch_size * (MAX_LEN + 1)));
     CUDA_CHECK(cudaMalloc(&arg->d_found_flag, sizeof(int)));
     CUDA_CHECK(cudaMalloc(&arg->d_found_index, sizeof(int)));
-    /* Pinned (page-locked) memory, not plain malloc: cudaMemcpyAsync on
-     * ordinary pageable memory forces the CUDA driver to internally stage
-     * through a pinned buffer anyway, which serializes the "async" copy
-     * against the CPU thread -- defeating the whole point of giving each
-     * thread its own stream for genuine overlap. Pinned memory lets the
-     * PCIe DMA engine transfer directly, so this thread's CPU can return
-     * to expanding the next A* nodes while the transfer is still in
-     * flight on another thread's overlapping stream. */
+    /* Pinned host memory for fast DMA transfers */
     CUDA_CHECK(cudaHostAlloc((void **)&arg->host_batch, arg->batch_size * (MAX_LEN + 1), cudaHostAllocDefault));
     u64 batch_count = 0;
 
@@ -431,8 +388,6 @@ int main(int argc, char **argv) {
         long detected = sysconf(_SC_NPROCESSORS_ONLN);
         num_threads = (detected > 0) ? (int)detected : 1;
     }
-    /* No longer clamped to g_charset_len (76) -- with 5776 dynamic
-     * 2-character tasks (for length>=2), far more threads can stay busy. */
     if (num_threads < 1) num_threads = 1;
 
     unsigned char target_digest[16];
@@ -446,7 +401,7 @@ int main(int argc, char **argv) {
     int total_tasks_display = (length >= 2) ? (g_charset_len * g_charset_len) : g_charset_len;
     printf("Password len  : %d\n", length);
     printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
-    printf("Cost model    : uniform (no training)\n");
+    printf("Cost model    : uniform\n");
     printf("Target MD5    : %s\n", target_hex);
     printf("Threads       : %d (dynamic %d-task queue, each with its own CUDA stream)\n", num_threads, total_tasks_display);
     printf("GPU batch/thr : %llu\n", (unsigned long long)batch_size);

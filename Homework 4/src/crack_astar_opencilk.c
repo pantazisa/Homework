@@ -1,17 +1,6 @@
 /*
  * crack_astar_opencilk.c
- * -----------------------
- * OpenCilk parallel implementation of the A* password cracker.
- *
- * PARALLELIZATION STRATEGY:
- *   Decomposes the search space into independent 2-character root prefix
- *   sub-tasks, dynamically scheduled across OpenCilk worker threads via
- *   `cilk_for`. Each task manages an independent priority queue (Heap),
- *   eliminating contention on a shared frontier. Early exit is handled
- *   via an atomic flag.
- *
- * USAGE:
- *   ./crack_astar_opencilk <length> <target_password> [--threads N]
+ * OpenCilk parallel implementation of A* password recovery using cilk_for.
  */
 
 #include <stdio.h>
@@ -105,7 +94,7 @@ int main(int argc, char **argv) {
 
     printf("Password len  : %d\n", length);
     printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
-    printf("Cost model    : uniform (no training)\n");
+    printf("Cost model    : uniform\n");
     printf("Target MD5    : %s\n", target_hex);
     printf("Threads       : %d (CILK_NWORKERS)\n", num_threads);
     printf("Design        : dynamic %d-task queue via cilk_for (Independent Local Heaps)\n", total_tasks);

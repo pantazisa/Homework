@@ -1,40 +1,20 @@
 /*
  * crack_astar_cuda.cu
- * --------------------
- * CUDA implementation of the A* password cracker with batch leaf verification.
- *
- * ARCHITECTURE:
- *   - CPU: Manages priority queue (Heap), state expansion, and heuristic evaluation.
- *   - GPU: Offloads compute-intensive MD5 hash verification for leaf candidates in batches.
- * 
- * DESIGN RATIONALE:
- *   Priority queues and branch-heavy graph search perform best on the CPU, whereas
- *   independent MD5 evaluation of complete candidates maps efficiently to GPU SIMT
- *   architecture. Leaf candidates are accumulated in a batch buffer. Once the batch
- *   fills (or MAX_NODES_BETWEEN_FLUSHES is reached), candidates are transferred to
- *   the GPU and verified concurrently in a single kernel launch.
- *
- * USAGE:
- *   ./crack_astar_cuda <length> <target_password> [--threads N]
- *   Note: In this pure-GPU version, --threads N specifies the GPU batch size
- *   (default: 1,048,576 candidates).
+ * CUDA implementation of A* password recovery with GPU batch leaf verification.
  */
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cctype>
-#include <cmath>
 #include <ctime>
 #include <cuda_runtime.h>
 #include "astar_heap.h"
-#include "md5.h"
 
 #define MAX_CHARSET_LEN 128
 #define THREADS_PER_BLOCK 256
 #define DEFAULT_BATCH_SIZE 1048576ULL
 
-/* Caps node expansions before flushing leaf candidates to the GPU, ensuring timely early-exit checks */
+/* Flush threshold for batched GPU leaf testing */
 #define MAX_NODES_BETWEEN_FLUSHES 200000ULL
 
 #define HEURISTIC_WEIGHT 1.0  /* Admissible heuristic weight for uniform costs */
@@ -61,13 +41,7 @@ static int g_char_to_idx[256];
 /* Uniform cost per character transition */
 static const double EDGE_COST = 1.0;
 
-/* ---------------------------------------------------------------------
- * CPU-side priority queue (identical to crack_astar.c).
- * --------------------------------------------------------------------- */
-
-/* ---------------------------------------------------------------------
- * GPU batch-testing kernel: one thread per candidate in the batch.
- * --------------------------------------------------------------------- */
+/* GPU batch-testing kernel */
 #define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c))))
 
 __device__ int d_found_flag;
@@ -285,7 +259,7 @@ int main(int argc, char **argv) {
 
     printf("Password len  : %d\n", length);
     printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
-    printf("Cost model    : uniform (no training)\n");
+    printf("Cost model    : uniform\n");
     printf("Target MD5    : %s\n", target_hex);
     printf("Batch size    : %llu (leaf candidates tested per GPU launch)\n", (unsigned long long)batch_size);
     printf("============================================================\n");
@@ -383,8 +357,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Flush any remaining partial batch -- don't leave accumulated leaves
-     * untested just because the search ended before filling a full batch. */
+    /* Flush remaining partial batch */
     if (!found && batch_count > 0) {
         struct timespec g0, g1;
         clock_gettime(CLOCK_MONOTONIC, &g0);

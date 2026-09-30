@@ -1,14 +1,6 @@
 /*
  * crack_astar.c
- * -------------
- * Sequential baseline implementation of an A* password cracker.
- * 
- * Uses a uniform-cost model across the 76-character alphabet (lowercase,
- * uppercase, digits, symbols). The search space is explored via a min-heap
- * priority queue with a beam bound. Complete candidates are evaluated using MD5.
- *
- * USAGE:
- *   ./crack_astar <length> <target_password>
+ * Sequential baseline implementation of A* password recovery.
  */
 
 #include <stdio.h>
@@ -142,7 +134,7 @@ int main(int argc, char **argv) {
 
     printf("Password len  : %d\n", length);
     printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
-    printf("Cost model    : uniform (no training)\n");
+    printf("Cost model    : uniform\n");
     printf("Target MD5    : %s\n", target_hex);
     printf("============================================================\n");
     fflush(stdout);

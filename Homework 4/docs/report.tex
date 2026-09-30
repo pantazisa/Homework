@@ -57,7 +57,8 @@
 \title{\textbf{Parallel A* Password Recovery} \\[4pt]
        \large Sequential, Pthreads, OpenMP, OpenCilk, CUDA and Hybrid CPU+GPU Implementations}
 \author{Parallel \& Distributed Systems (Homework 4) \\
-    Apostolos Pantazis (10910)}
+      Apostolos Pantazis (10910)
+}
 \date{September 2026}
 
 \begin{document}
@@ -99,9 +100,8 @@ use A* as a systematic, memory-bounded traversal.
 
 Since $f$ is uniform, A* here behaves as a systematic frontier expansion. To bound memory we apply
 \textbf{beam trimming}: when the priority queue exceeds \texttt{BEAM\_CAP} $=3\,000\,000$ states, a
-\texttt{quickselect} keeps the best \texttt{BEAM\_KEEP} $=1\,200\,000$ and re-heapifies. There is
-\textbf{no brute-force fallback and no training} of any kind: a case reported as \emph{not found} is
-a genuine failure within the search's own node/time budget.
+\texttt{quickselect} keeps the best \texttt{BEAM\_KEEP} $=1\,200\,000$ and re-heapifies. If the
+target is not recovered within the allocated node or time budget, the search terminates with failure.
 
 % ==================================================================
 \section{Software Architecture}
@@ -276,11 +276,11 @@ overhead and increased frontier exploration erode the benefit.
 \end{tabular}
 \end{table}
 
-\subsection{Hybrid: length-5 (headline finding)}
-Length-5 is the key result. Every CPU-only implementation exhausts its search budget at length~5
-(100\% failure), whereas the Hybrid CPU+GPU design \textbf{recovers all four exploratory targets}.
-Table~\ref{tab:hyb5} shows the batch-size sweep at 16 threads: larger batches amortize GPU launch
-overhead and cut both time and total kernel launches sharply.
+\subsection{Hybrid: Evaluation on length-5 targets}
+Length-5 represents a significantly larger search space ($76^5 \approx 2.53 \times 10^9$ states).
+The CPU-only implementations exhaust their search budget on length~5, whereas the Hybrid CPU+GPU design
+successfully recovers all test targets. Table~\ref{tab:hyb5} shows the batch-size sweep at 16 threads:
+larger batches amortize GPU launch overhead and reduce overall execution time.
 
 \begin{table}[h]
 \centering
@@ -316,9 +316,9 @@ overhead and cut both time and total kernel launches sharply.
 \section{Discussion}
 % ==================================================================
 \begin{itemize}[nosep]
-  \item \textbf{Decomposition quality.} The 5\,776 two-character prefix tasks give plenty of
-        parallel slack for a 28-core host, and per-thread private heaps remove the main contention
-        point, which is why Pthreads scales near-ideally to 8 threads.
+  \item \textbf{Decomposition quality.} The 5\,776 two-character prefix tasks provide sufficient
+        granularity for load balancing on a 28-core host, while per-thread private heaps eliminate
+        lock contention on the priority queue, allowing near-linear scaling up to 8 threads.
   \item \textbf{Runtime differences.} OpenMP is consistently a bit slower than Pthreads at the same
         thread count due to scheduling overhead. OpenCilk wins at low thread counts but its
         work-stealing makes the number of expanded nodes --- and therefore time --- less predictable.
