@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        /* Προσθήκη των στατιστικών αυτού του task στα συνολικά στατιστικά */
+        /* Accumulate per-task metrics into global statistics */
         atomic_fetch_add(&g_total_nodes, local_nodes);
         atomic_fetch_add(&g_total_leaves, local_leaves);
 

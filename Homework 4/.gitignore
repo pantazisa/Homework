@@ -27,3 +27,5 @@
 .vscode/
 .DS_Store
 *.Identifier
+*Zone.Identifier*
+*:Zone.Identifier

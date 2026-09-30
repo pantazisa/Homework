@@ -33,7 +33,7 @@ In cryptographic hashing (MD5), the avalanche effect prevents measuring any cont
 * **Search Budgets & Strict Evaluation**:
   - `TIME_BUDGET_SECONDS`: 60.0 seconds maximum wall-clock search time.
   - `NODE_BUDGET`: 30,000,000 nodes (35,000,000 in the Hybrid variant).
-  - There is **no brute-force fallback and no training**. If a target is not found within the search budget or beam retention, the program reports a genuine failure (`Password NOT recovered`).
+  - There is **no brute-force fallback**. If a target is not found within the search budget or beam retention, the program reports a genuine failure (`Password NOT recovered`).
 * **Goal Test & MD5 Hashing**:
   - For testing and benchmarking convenience, the CLI accepts the plaintext target password, validates its length and alphabet, and internally computes its 128-bit MD5 digest.
   - The plaintext is **not** exposed to the search algorithm; candidate prefixes are tested strictly against the target digest once they reach target length $L$ (at the leaf nodes).
@@ -57,9 +57,10 @@ In cryptographic hashing (MD5), the avalanche effect prevents measuring any cont
 │   ├── crack_astar_opencilk.c   # OpenCilk implementation (cilk_for work-stealing)
 │   ├── crack_astar_cuda.cu      # CUDA implementation (batch leaf hashing on GPU)
 │   └── crack_astar_hybrid.cu    # Hybrid CPU-GPU implementation (streams + pinned host RAM)
-├── scripts/                     # Automated benchmarking suites
+├── scripts/                     # Automated benchmarking and testing suites
 │   ├── run_all_astar.sh         # CPU & pure-CUDA benchmarks across thread counts
-│   └── run_hybrid_benchmark.sh  # Hybrid thread and batch-size sweep benchmarks
+│   ├── run_hybrid_benchmark.sh  # Hybrid thread and batch-size sweep benchmarks
+│   └── run_verification_tests.sh# Automated functional verification test suite
 ├── docs/                        # Project report
 │   ├── report.tex               # LaTeX source of the report
 │   └── report.pdf               # Compiled final report
@@ -216,3 +217,9 @@ The `scripts/` directory contains bash scripts to reproduce all experiment sweep
    ./scripts/run_hybrid_benchmark.sh [output_directory]
    ```
    Sweeps thread counts ($1, 2, 4, 8, 16, 32$) and GPU batch sizes ($16\text{k}, 64\text{k}, 256\text{k}, 1\text{M}$) across length-4 and length-5 targets, logging metrics to `reports_hybrid/`.
+
+3. **Automated Verification Suite**:
+   ```bash
+   ./scripts/run_verification_tests.sh
+   ```
+   Verifies functional correctness of all built implementations against reference targets.

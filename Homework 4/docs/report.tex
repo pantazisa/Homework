@@ -8,7 +8,7 @@
 \usepackage[english]{babel}
 \usepackage{amsmath,amssymb}
 \usepackage{geometry}
-\geometry{margin=2.4cm}
+\geometry{margin=2.4cm, headheight=14pt}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{multirow}
@@ -88,8 +88,8 @@ use A* as a systematic, memory-bounded traversal.
 \paragraph{State-space model.}
 \begin{itemize}[nosep]
   \item \textbf{State:} a candidate prefix string $s$ at depth $d$.
-  \item \textbf{Alphabet:} a fixed 76-symbol set --- lowercase, uppercase, digits, and the symbols
-        \verb|!@#$%^&*()-_=+|.
+  \item \textbf{Alphabet:} a fixed 76-symbol set --- lowercase, uppercase, digits, and \\
+        symbols \verb|!@#$%^&*()-_=+|.
   \item \textbf{Path cost:} $g(n) = d \cdot \text{EDGE\_COST}$, with $\text{EDGE\_COST}=1.0$.
   \item \textbf{Heuristic:} $h(n) = (L - d)\cdot \text{EDGE\_COST}$ (remaining depth; admissible).
   \item \textbf{Evaluation:} $f(n) = g(n) + h(n) = L$, uniform across all candidates of the target
@@ -217,12 +217,12 @@ parallel columns use the stated thread count. CUDA uses batch size $262\,144$.}
 \toprule
 \textbf{Target} & \textbf{seq} & \textbf{pth-8} & \textbf{pth-32} & \textbf{omp-8} & \textbf{omp-32} & \textbf{cilk-8} & \textbf{cuda} \\
 \midrule
-PtYg & 1.593 & 0.233 & 0.085 & 0.524 & 0.157 & 0.146 & 0.126 \\
-j\&mU & 2.987 & 0.058 & 0.022 & 0.122 & 0.041 & 0.035 & 0.404 \\
-=h\#B & 0.176 & 0.422 & 0.154 & 0.943 & 0.298 & 0.211 & 0.818 \\
-el31 & 3.375 & 0.024 & 0.010 & 0.052 & 0.018 & 0.084 & 1.021 \\
-iEl( & 3.181 & 0.049 & 0.020 & 0.107 & 0.040 & 0.170 & 1.175 \\
-2h-p & 1.084 & 0.301 & 0.111 & 0.684 & 0.211 & 0.097 & 1.255 \\
+PtYg & 1.571 & 0.238 & 0.089 & 0.535 & 0.160 & 0.106 & 0.185 \\
+j\&mU & 2.946 & 0.055 & 0.024 & 0.121 & 0.041 & 0.030 & 0.336 \\
+=h\#B & 0.181 & 0.416 & 0.154 & 0.983 & 0.295 & 0.128 & 0.023 \\
+el31 & 3.360 & 0.025 & 0.010 & 0.053 & 0.017 & 0.078 & 0.396 \\
+iEl( & 3.132 & 0.051 & 0.019 & 0.104 & 0.034 & 0.010 & 0.343 \\
+2h-p & 1.063 & 0.305 & 0.116 & 0.704 & 0.214 & 0.085 & 0.127 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -235,19 +235,19 @@ reflecting the coarse-grained, contention-free task decomposition.
 \begin{table}[h]
 \centering
 \caption{Pthreads self-relative speedup for target \texttt{PtYg}
-(baseline: pthreads with 1 thread, 1.863\,s).}
+(baseline: pthreads with 1 thread, 1.877\,s).}
 \label{tab:speedup}
 \small
 \begin{tabular}{@{}rrrr@{}}
 \toprule
 \textbf{Threads} & \textbf{Time (s)} & \textbf{Speedup} & \textbf{Efficiency} \\
 \midrule
-1  & 1.863 & 1.00$\times$  & 100\% \\
-2  & 0.928 & 2.01$\times$  & 100\% \\
-4  & 0.457 & 4.07$\times$  & 102\% \\
-8  & 0.233 & 8.01$\times$  & 100\% \\
-16 & 0.133 & 14.05$\times$ & 88\% \\
-32 & 0.085 & 21.88$\times$ & 68\% \\
+1  & 1.877 & 1.00$\times$  & 100\% \\
+2  & 0.933 & 2.01$\times$  & 101\% \\
+4  & 0.464 & 4.05$\times$  & 101\% \\
+8  & 0.238 & 7.89$\times$  & 99\% \\
+16 & 0.135 & 13.92$\times$ & 87\% \\
+32 & 0.089 & 21.05$\times$ & 66\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -335,7 +335,7 @@ larger batches amortize GPU launch overhead and reduce overall execution time.
 % ==================================================================
 \section{Verification}
 % ==================================================================
-Automated functional tests (\texttt{run\_verification\_tests.sh}) confirm every built
+Automated functional tests (\texttt{scripts/run\_verification\_tests.sh}) confirm every built
 implementation recovers the reference target \texttt{PtYg}. All six binaries compile cleanly under
 \texttt{-Wall -Wextra} with no warnings and produce the correct plaintext.
 
@@ -358,7 +358,7 @@ Hybrid     & PASS --- recovered \texttt{PtYg} \\
 \section{Conclusion}
 % ==================================================================
 All six implementations are correct and reproducible. On length-4 targets the CPU parallel variants
-achieve near-ideal speedups (Pthreads reaches $\approx 22\times$ at 32 threads), while pure GPU
+achieve near-ideal speedups (Pthreads reaches $\approx 21\times$ at 32 threads), while pure GPU
 offloading is limited by CPU-side frontier expansion. The decisive result is at length~5: only the
 Hybrid Pthreads\,+\,CUDA design, combining dynamic CPU task distribution with per-thread CUDA
 streams and large GPU batches, extends the reach of the search into a space where every CPU-only

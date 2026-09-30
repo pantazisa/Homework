@@ -17,6 +17,12 @@ void heap_free(Heap *h) {
     h->data = NULL; 
 }
 
+static inline int state_better(const State *a, const State *b) {
+    if (a->f < b->f) return 1;
+    if (a->f == b->f && a->depth > b->depth) return 1;
+    return 0;
+}
+
 void heap_push(Heap *h, State s) {
     if (h->size == h->capacity) {
         h->capacity *= 2;
@@ -31,7 +37,7 @@ void heap_push(Heap *h, State s) {
     h->data[i] = s;
     while (i > 0) {
         int parent = (i - 1) / 2;
-        if (h->data[parent].f <= h->data[i].f) break;
+        if (!state_better(&h->data[i], &h->data[parent])) break;
         State tmp = h->data[parent]; h->data[parent] = h->data[i]; h->data[i] = tmp;
         i = parent;
     }
@@ -43,8 +49,8 @@ State heap_pop(Heap *h) {
     int i = 0;
     for (;;) {
         int left = 2 * i + 1, right = 2 * i + 2, smallest = i;
-        if (left < h->size && h->data[left].f < h->data[smallest].f) smallest = left;
-        if (right < h->size && h->data[right].f < h->data[smallest].f) smallest = right;
+        if (left < h->size && state_better(&h->data[left], &h->data[smallest])) smallest = left;
+        if (right < h->size && state_better(&h->data[right], &h->data[smallest])) smallest = right;
         if (smallest == i) break;
         State tmp = h->data[i]; h->data[i] = h->data[smallest]; h->data[smallest] = tmp;
         i = smallest;
@@ -54,32 +60,31 @@ State heap_pop(Heap *h) {
 
 static void swap_state(State *a, State *b) { State tmp = *a; *a = *b; *b = tmp; }
 
-static int partition_states(State *arr, int lo, int hi, int pivot_idx) {
-    double pivot_val = arr[pivot_idx].f;
-    swap_state(&arr[pivot_idx], &arr[hi]);
-    int store = lo;
-    for (int i = lo; i < hi; i++) {
-        if (arr[i].f < pivot_val) { swap_state(&arr[i], &arr[store]); store++; }
-    }
-    swap_state(&arr[store], &arr[hi]);
-    return store;
-}
-
 static void quickselect(State *arr, int lo, int hi, int k) {
     while (lo < hi) {
         int pivot_idx = lo + (hi - lo) / 2;
-        int p = partition_states(arr, lo, hi, pivot_idx);
-        if (p == k) return;
-        else if (p < k) lo = p + 1;
-        else hi = p - 1;
+        State pivot = arr[pivot_idx];
+        int i = lo, j = hi;
+        while (i <= j) {
+            while (state_better(&arr[i], &pivot)) i++;
+            while (state_better(&pivot, &arr[j])) j--;
+            if (i <= j) {
+                swap_state(&arr[i], &arr[j]);
+                i++;
+                j--;
+            }
+        }
+        if (k <= j) hi = j;
+        else if (k >= i) lo = i;
+        else return;
     }
 }
 
 static void sift_down(State *arr, int n, int i) {
     for (;;) {
         int left = 2 * i + 1, right = 2 * i + 2, smallest = i;
-        if (left < n && arr[left].f < arr[smallest].f) smallest = left;
-        if (right < n && arr[right].f < arr[smallest].f) smallest = right;
+        if (left < n && state_better(&arr[left], &arr[smallest])) smallest = left;
+        if (right < n && state_better(&arr[right], &arr[smallest])) smallest = right;
         if (smallest == i) break;
         State tmp = arr[i]; arr[i] = arr[smallest]; arr[smallest] = tmp;
         i = smallest;
