@@ -185,7 +185,7 @@ run_case_table LENGTH4_CASES
 
 echo
 echo "############################################################"
-echo "# LENGTH 5 (EXPLORATORY -- everything else failed 100% here)"
+echo "# LENGTH 5 -- Scaling test on larger search spaces"
 echo "############################################################"
 {
     echo

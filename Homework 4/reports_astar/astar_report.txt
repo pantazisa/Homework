@@ -1,7 +1,7 @@
 ============================================================
  A* Search Benchmark Report
 ============================================================
-Generated : 2026-09-29 16:59:03 EEST
+Generated : 2026-10-05 05:12:01 EEST
 Host      : Linux 6.6.87.2-microsoft-standard-WSL2 x86_64 GNU/Linux
 CPU cores : 28
 Note      : Uniform transition costs across the 76-character alphabet.
@@ -12,174 +12,174 @@ Note      : Uniform transition costs across the 76-character alphabet.
 ------------------------------------------------------------
 Impl         Threads  Time(s)      NodesExpanded  Found?  
 ------------------------------------------------------------------
-sequential   1        1.571083     203347         yes     
-pthreads     1        1.876549     241424         yes     
-pthreads     2        0.932840     241392         yes     
-pthreads     4        0.463593     241393         yes     
-pthreads     8        0.237855     241471         yes     
-pthreads     16       0.134819     241126         yes     
-pthreads     32       0.089149     241012         yes     
-openmp       1        1.887847     241424         yes     
-openmp       2        1.344833     241416         yes     
-openmp       4        0.902426     241373         yes     
-openmp       8        0.534850     241242         yes     
-openmp       16       0.288712     241296         yes     
-openmp       32       0.159693     240693         yes     
-opencilk     1        0.062969     142484         yes     
-opencilk     2        0.128911     309023         yes     
-opencilk     4        0.149511     360516         yes     
-opencilk     8        0.106356     255686         yes     
-opencilk     16       0.176703     426581         yes     
-opencilk     32       0.063747     145312         yes     
-cuda         65536    0.206993     203601         yes     
-cuda         262144   0.185178     206223         yes     
-cuda         1048576  0.192969     209717         yes     
-cuda         4194304  0.212473     223701         yes     
+sequential   1        0.362080     39680          yes     
+pthreads     1        2.105546     241420         yes     
+pthreads     2        1.075386     241417         yes     
+pthreads     4        0.520120     241329         yes     
+pthreads     8        0.253006     241377         yes     
+pthreads     16       0.149729     241008         yes     
+pthreads     32       0.096945     241018         yes     
+openmp       1        2.027581     241420         yes     
+openmp       2        1.509396     241401         yes     
+openmp       4        0.954152     241437         yes     
+openmp       8        0.593077     241440         yes     
+openmp       16       0.353042     241225         yes     
+openmp       32       0.200214     240945         yes     
+opencilk     1        2.043065     241420         yes     
+opencilk     2        0.155925     38054          yes     
+opencilk     4        0.156310     74891          yes     
+opencilk     8        0.162172     148214         yes     
+opencilk     16       0.182954     277322         yes     
+opencilk     32       0.067952     138974         yes     
+cuda         65536    0.127833     40197          yes     
+cuda         262144   0.130102     41946          yes     
+cuda         1048576  0.134269     41946          yes     
+cuda         4194304  0.194190     55927          yes     
 
 ------------------------------------------------------------
  Test case: random_b   (length=4, target=j&mU)
 ------------------------------------------------------------
 Impl         Threads  Time(s)      NodesExpanded  Found?  
 ------------------------------------------------------------------
-sequential   1        2.945741     387059         yes     
-pthreads     1        0.438356     57971          yes     
-pthreads     2        0.221585     57994          yes     
-pthreads     4        0.111511     58029          yes     
-pthreads     8        0.055360     58219          yes     
-pthreads     16       0.036341     58559          yes     
-pthreads     32       0.023638     58606          yes     
-openmp       1        0.444129     57971          yes     
-openmp       2        0.324765     58022          yes     
-openmp       4        0.213159     58082          yes     
-openmp       8        0.120741     58004          yes     
-openmp       16       0.069610     58606          yes     
-openmp       32       0.041251     58140          yes     
-opencilk     1        0.030027     63624          yes     
-opencilk     2        0.032559     68935          yes     
-opencilk     4        0.034311     71725          yes     
-opencilk     8        0.029872     62168          yes     
-opencilk     16       0.031160     65685          yes     
-opencilk     32       0.032505     69565          yes     
-cuda         65536    0.381880     387103         yes     
-cuda         262144   0.336259     387977         yes     
-cuda         1048576  0.348752     391471         yes     
-cuda         4194304  0.356044     391471         yes     
+sequential   1        1.235580     134763         yes     
+pthreads     1        0.476990     57964          yes     
+pthreads     2        0.239755     58004          yes     
+pthreads     4        0.122499     58037          yes     
+pthreads     8        0.059671     58168          yes     
+pthreads     16       0.037995     58142          yes     
+pthreads     32       0.026519     58214          yes     
+openmp       1        0.493123     57964          yes     
+openmp       2        0.401278     57943          yes     
+openmp       4        0.244063     57962          yes     
+openmp       8        0.145393     58233          yes     
+openmp       16       0.084626     58257          yes     
+openmp       32       0.051360     58546          yes     
+opencilk     1        0.511623     57964          yes     
+opencilk     2        0.516008     115847         yes     
+opencilk     4        0.525555     235213         yes     
+opencilk     8        0.021169     17433          yes     
+opencilk     16       0.032081     39665          yes     
+opencilk     32       0.039785     70063          yes     
+cuda         65536    0.427440     135443         yes     
+cuda         262144   0.423088     136318         yes     
+cuda         1048576  0.425892     139812         yes     
+cuda         4194304  0.533464     167774         yes     
 
 ------------------------------------------------------------
  Test case: random_c   (length=4, target==h#B)
 ------------------------------------------------------------
 Impl         Threads  Time(s)      NodesExpanded  Found?  
 ------------------------------------------------------------------
-sequential   1        0.181413     22887          yes     
-pthreads     1        3.317661     433602         yes     
-pthreads     2        1.657067     433550         yes     
-pthreads     4        0.836397     433544         yes     
-pthreads     8        0.415552     433458         yes     
-pthreads     16       0.238072     433283         yes     
-pthreads     32       0.153563     432615         yes     
-openmp       1        3.342775     433602         yes     
-openmp       2        2.539751     433600         yes     
-openmp       4        1.604721     433558         yes     
-openmp       8        0.982555     433374         yes     
-openmp       16       0.524783     433152         yes     
-openmp       32       0.294926     432536         yes     
-opencilk     1        0.160588     385002         yes     
-opencilk     2        0.146064     349625         yes     
-opencilk     4        0.099266     232517         yes     
-opencilk     8        0.127665     288789         yes     
-opencilk     16       0.036869     79894          yes     
-opencilk     32       0.156232     371656         yes     
-cuda         65536    0.022756     23599          yes     
-cuda         262144   0.022866     24471          yes     
-cuda         1048576  0.028551     27967          yes     
-cuda         4194304  0.063888     55929          yes     
+sequential   1        2.425751     262264         yes     
+pthreads     1        3.366426     433635         yes     
+pthreads     2        1.667265     433673         yes     
+pthreads     4        0.851080     433722         yes     
+pthreads     8        0.482972     433813         yes     
+pthreads     16       0.278629     433993         yes     
+pthreads     32       0.183618     433788         yes     
+openmp       1        3.824688     433635         yes     
+openmp       2        2.937357     433650         yes     
+openmp       4        1.723953     433595         yes     
+openmp       8        1.029248     433781         yes     
+openmp       16       0.609355     433727         yes     
+openmp       32       0.360153     433985         yes     
+opencilk     1        3.753646     433635         yes     
+opencilk     2        1.761789     421404         yes     
+opencilk     4        0.828672     392869         yes     
+opencilk     8        0.383008     355801         yes     
+opencilk     16       0.174027     270214         yes     
+opencilk     32       0.050205     93063          yes     
+cuda         65536    0.912479     263020         yes     
+cuda         262144   0.891321     265641         yes     
+cuda         1048576  0.878194     265641         yes     
+cuda         4194304  0.877969     279622         yes     
 
 ------------------------------------------------------------
  Test case: random_d   (length=4, target=el31)
 ------------------------------------------------------------
 Impl         Threads  Time(s)      NodesExpanded  Found?  
 ------------------------------------------------------------------
-sequential   1        3.360255     432299         yes     
-pthreads     1        0.184353     24278          yes     
-pthreads     2        0.095572     24278          yes     
-pthreads     4        0.045925     24306          yes     
-pthreads     8        0.024564     24089          yes     
-pthreads     16       0.014831     24171          yes     
-pthreads     32       0.010257     23805          yes     
-openmp       1        0.186294     24278          yes     
-openmp       2        0.134933     24252          yes     
-openmp       4        0.095222     24197          yes     
-openmp       8        0.053407     24042          yes     
-openmp       16       0.029964     24159          yes     
-openmp       32       0.017358     23711          yes     
-opencilk     1        0.174707     400578         yes     
-opencilk     2        0.131575     300065         yes     
-opencilk     4        0.144894     349174         yes     
-opencilk     8        0.077551     179971         yes     
-opencilk     16       0.162588     367594         yes     
-opencilk     32       0.120587     290726         yes     
-cuda         65536    0.436172     432541         yes     
-cuda         262144   0.396225     433415         yes     
-cuda         1048576  0.394662     433415         yes     
-cuda         4194304  0.399540     444829         yes     
+sequential   1        3.244354     345816         yes     
+pthreads     1        0.207145     24298          yes     
+pthreads     2        0.103125     24285          yes     
+pthreads     4        0.050804     24250          yes     
+pthreads     8        0.027129     24330          yes     
+pthreads     16       0.018892     24129          yes     
+pthreads     32       0.012478     24262          yes     
+openmp       1        0.201134     24298          yes     
+openmp       2        0.154168     24310          yes     
+openmp       4        0.098159     24296          yes     
+openmp       8        0.061777     24490          yes     
+openmp       16       0.037437     24459          yes     
+openmp       32       0.021869     24100          yes     
+opencilk     1        0.216615     24298          yes     
+opencilk     2        0.219144     48712          yes     
+opencilk     4        0.222592     98305          yes     
+opencilk     8        0.227595     198154         yes     
+opencilk     16       0.267233     384796         yes     
+opencilk     32       0.161410     322773         yes     
+cuda         65536    1.168104     346033         yes     
+cuda         262144   1.053691     346033         yes     
+cuda         1048576  1.048263     349527         yes     
+cuda         4194304  1.200941     391470         yes     
 
 ------------------------------------------------------------
  Test case: random_e   (length=4, target=iEl()
 ------------------------------------------------------------
 Impl         Threads  Time(s)      NodesExpanded  Found?  
 ------------------------------------------------------------------
-sequential   1        3.132243     407315         yes     
-pthreads     1        0.372570     49193          yes     
-pthreads     2        0.184594     49234          yes     
-pthreads     4        0.094661     49302          yes     
-pthreads     8        0.050541     49402          yes     
-pthreads     16       0.028081     49579          yes     
-pthreads     32       0.019210     49825          yes     
-openmp       1        0.379398     49193          yes     
-openmp       2        0.275646     49204          yes     
-openmp       4        0.180880     49342          yes     
-openmp       8        0.104327     49452          yes     
-openmp       16       0.060533     49609          yes     
-openmp       32       0.034173     50613          yes     
-opencilk     1        0.142176     349176         yes     
-opencilk     2        0.083495     196462         yes     
-opencilk     4        0.135452     302321         yes     
-opencilk     8        0.010361     15881          yes     
-opencilk     16       0.111071     254585         yes     
-opencilk     32       0.172055     398507         yes     
-cuda         65536    0.363588     408073         yes     
-cuda         262144   0.343044     408947         yes     
-cuda         1048576  0.359567     419433         yes     
-cuda         4194304  0.386981     444829         yes     
+sequential   1        3.928767     405146         yes     
+pthreads     1        0.430736     49203          yes     
+pthreads     2        0.212709     49247          yes     
+pthreads     4        0.105692     49304          yes     
+pthreads     8        0.053737     49477          yes     
+pthreads     16       0.033539     49684          yes     
+pthreads     32       0.022142     49996          yes     
+openmp       1        0.431487     49203          yes     
+openmp       2        0.310447     49267          yes     
+openmp       4        0.200137     49462          yes     
+openmp       8        0.116945     49551          yes     
+openmp       16       0.070807     49735          yes     
+openmp       32       0.041027     50085          yes     
+opencilk     1        0.425165     49203          yes     
+opencilk     2        0.418674     98470          yes     
+opencilk     4        0.420605     199354         yes     
+opencilk     8        0.363395     336078         yes     
+opencilk     16       0.202958     309631         yes     
+opencilk     32       0.179455     381717         yes     
+cuda         65536    1.274566     405451         yes     
+cuda         262144   1.156306     405451         yes     
+cuda         1048576  1.155192     405451         yes     
+cuda         4194304  1.266748     444829         yes     
 
 ------------------------------------------------------------
  Test case: random_f   (length=4, target=2h-p)
 ------------------------------------------------------------
 Impl         Threads  Time(s)      NodesExpanded  Found?  
 ------------------------------------------------------------------
-sequential   1        1.062732     139939         yes     
-pthreads     1        2.380671     316554         yes     
-pthreads     2        1.189017     316512         yes     
-pthreads     4        0.596081     316404         yes     
-pthreads     8        0.304814     316393         yes     
-pthreads     16       0.174371     316061         yes     
-pthreads     32       0.115677     315631         yes     
-openmp       1        2.415771     316554         yes     
-openmp       2        1.761044     316546         yes     
-openmp       4        1.157836     316489         yes     
-openmp       8        0.704169     316340         yes     
-openmp       16       0.386797     315892         yes     
-openmp       32       0.213689     315423         yes     
-opencilk     1        0.125554     292127         yes     
-opencilk     2        0.118775     291657         yes     
-opencilk     4        0.127451     287334         yes     
-opencilk     8        0.085298     184664         yes     
-opencilk     16       0.108930     252004         yes     
-opencilk     32       0.125160     292731         yes     
-cuda         65536    0.130707     140689         yes     
-cuda         262144   0.127309     143309         yes     
-cuda         1048576  0.138732     153795         yes     
-cuda         4194304  0.157546     167777         yes     
+sequential   1        3.875898     435824         yes     
+pthreads     1        2.763445     316588         yes     
+pthreads     2        1.374702     316592         yes     
+pthreads     4        0.685204     316535         yes     
+pthreads     8        0.341575     316559         yes     
+pthreads     16       0.200880     316808         yes     
+pthreads     32       0.130044     316526         yes     
+openmp       1        2.750007     316588         yes     
+openmp       2        2.115958     316566         yes     
+openmp       4        1.253098     316629         yes     
+openmp       8        0.768823     316661         yes     
+openmp       16       0.435762     316552         yes     
+openmp       32       0.248710     316228         yes     
+opencilk     1        2.707102     316588         yes     
+opencilk     2        0.823893     190139         yes     
+opencilk     4        0.570693     270130         yes     
+opencilk     8        0.328208     306853         yes     
+opencilk     16       0.127217     191700         yes     
+opencilk     32       0.120095     250511         yes     
+cuda         65536    1.398874     436034         yes     
+cuda         262144   1.364394     436908         yes     
+cuda         1048576  1.361587     444829         yes     
+cuda         4194304  1.395905     444829         yes     
 
 ============================================================
 Notes:

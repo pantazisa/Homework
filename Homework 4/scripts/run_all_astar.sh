@@ -20,12 +20,12 @@ mkdir -p "$OUT_DIR"
 
 # Predefined length-4 benchmark test cases
 TEST_CASES=(
-    "random_a:4:PtYg"      # ~0.85s
-    "random_b:4:j&mU"      # ~2.74s
-    "random_c:4:=h#B"      # ~5.40s
-    "random_d:4:el31"      # ~7.17s
-    "random_e:4:iEl("      # ~8.45s
-    "random_f:4:2h-p"      # ~9.05s -- hardest confirmed case, best for showing speedup
+    "random_a:4:PtYg"
+    "random_b:4:j&mU"
+    "random_c:4:=h#B"
+    "random_d:4:el31"
+    "random_e:4:iEl("
+    "random_f:4:2h-p"
 )
 
 # Thread counts and GPU batch sizes for benchmarks
@@ -44,6 +44,8 @@ IMPLS=(
 echo "Building CPU-based implementations (sequential, pthreads, OpenMP)..."
 if [ -f Makefile ]; then
     make crack_astar crack_astar_pthreads crack_astar_omp
+    make crack_astar_opencilk >/dev/null 2>&1 || true
+    make crack_astar_cuda >/dev/null 2>&1 || true
 else
     gcc -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=199309L -Isrc -o crack_astar src/crack_astar.c src/astar_heap.c src/md5.c -lm
     gcc -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=199309L -pthread -Isrc -o crack_astar_pthreads src/crack_astar_pthreads.c src/astar_heap.c src/md5.c -lm
@@ -67,13 +69,21 @@ run_once() {
 
     if [ "$threads" == "-" ]; then
         cmd=("$bin" "$length" "$target")
+        if ! output=$("${cmd[@]}" 2>&1); then
+            echo "ERROR"
+            return
+        fi
+    elif [[ "$bin" == *"opencilk"* ]]; then
+        if ! output=$(CILK_NWORKERS="$threads" "$bin" "$length" "$target" 2>&1); then
+            echo "ERROR"
+            return
+        fi
     else
         cmd=("$bin" "$length" "$target" --threads "$threads")
-    fi
-
-    if ! output=$("${cmd[@]}" 2>&1); then
-        echo "ERROR"
-        return
+        if ! output=$("${cmd[@]}" 2>&1); then
+            echo "ERROR"
+            return
+        fi
     fi
 
     local elapsed nodes found

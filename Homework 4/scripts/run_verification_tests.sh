@@ -28,8 +28,13 @@ verify_binary() {
     TOTAL=$((TOTAL + 1))
     printf "%-25s ... " "$name"
 
-    if [ ! -x "${cmd[0]}" ]; then
-        echo "SKIPPED (binary not built: ${cmd[0]})"
+    local executable="${cmd[0]}"
+    if [ "$executable" = "env" ]; then
+        executable="${cmd[2]}"
+    fi
+
+    if [ ! -x "$executable" ]; then
+        echo "SKIPPED (binary not built: $executable)"
         return
     fi
 
@@ -57,7 +62,7 @@ verify_binary "Pthreads (8 threads)" ./crack_astar_pthreads $LEN "$TARGET" --thr
 verify_binary "OpenMP (8 threads)" ./crack_astar_omp $LEN "$TARGET" --threads 8
 
 # 4. OpenCilk
-verify_binary "OpenCilk (8 workers)" ./crack_astar_opencilk $LEN "$TARGET" --threads 8
+verify_binary "OpenCilk (8 workers)" env CILK_NWORKERS=8 ./crack_astar_opencilk $LEN "$TARGET"
 
 # 5. CUDA
 verify_binary "CUDA (batch 262144)" ./crack_astar_cuda $LEN "$TARGET" --threads 262144

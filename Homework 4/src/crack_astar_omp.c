@@ -17,8 +17,6 @@
 
 #define MAX_CHARSET_LEN 128
 
-
-
 typedef unsigned long long u64;
 
 static char g_charset[MAX_CHARSET_LEN];
@@ -104,7 +102,9 @@ static void process_task(ThreadArg *arg, int task_id, int root_depth) {
     heap_trim_if_needed(heap);
 
     if (arg->nodes_expanded % TIME_CHECK_INTERVAL == 0) {
-      u64 total_now = atomic_fetch_add(&g_total_nodes_expanded, TIME_CHECK_INTERVAL) + TIME_CHECK_INTERVAL;
+      u64 total_now =
+          atomic_fetch_add(&g_total_nodes_expanded, TIME_CHECK_INTERVAL) +
+          TIME_CHECK_INTERVAL;
       struct timespec now;
       clock_gettime(CLOCK_MONOTONIC, &now);
       double elapsed_so_far = (now.tv_sec - g_search_start.tv_sec) +

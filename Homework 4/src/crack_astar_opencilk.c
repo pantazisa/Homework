@@ -16,15 +16,11 @@
 
 #define MAX_CHARSET_LEN 128
 
-
-
 typedef unsigned long long u64;
 
 static char g_charset[MAX_CHARSET_LEN];
 static int g_charset_len;
 static int g_char_to_idx[256];
-
-
 
 /* Uniform cost per character transition */
 static const double EDGE_COST = 1.0;
@@ -44,13 +40,6 @@ int main(int argc, char **argv) {
 
   int length = atoi(argv[1]);
   const char *target_password = argv[2];
-  int num_threads = 0;
-
-  for (int i = 3; i < argc; i++) {
-    if (strcmp(argv[i], "--threads") == 0 && i + 1 < argc) {
-      num_threads = atoi(argv[++i]);
-    }
-  }
 
   if (length <= 0 || length > MAX_LEN) {
     fprintf(stderr, "Error: length must be between 1 and %d\n", MAX_LEN);
@@ -71,31 +60,16 @@ int main(int argc, char **argv) {
 
   for (int i = 0; i < length; i++) {
     if (g_char_to_idx[(unsigned char)target_password[i]] < 0) {
-      fprintf(stderr, "Error: target password contains a character outside the supported alphabet\n");
+      fprintf(stderr, "Error: target password contains a character outside the "
+                      "supported alphabet\n");
       return 1;
     }
   }
 
-  if (num_threads <= 0) {
-    const char *cilk_workers_env = getenv("CILK_NWORKERS");
-    if (cilk_workers_env != NULL) {
-      int from_env = atoi(cilk_workers_env);
-      if (from_env > 0)
-        num_threads = from_env;
-    }
-    if (num_threads <= 0) {
-      long detected = sysconf(_SC_NPROCESSORS_ONLN);
-      num_threads = (detected > 0) ? (int)detected : 1;
-    }
-  }
-  if (num_threads < 1)
-    num_threads = 1;
-
-  if (num_threads > 0) {
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d", num_threads);
-    setenv("CILK_NWORKERS", buf, 1);
-  }
+  const char *nw_env = getenv("CILK_NWORKERS");
+  int num_threads = (nw_env && atoi(nw_env) > 0) ? atoi(nw_env)
+                    : (int)sysconf(_SC_NPROCESSORS_ONLN);
+  if (num_threads < 1) num_threads = 1;
 
   unsigned char target_digest[16];
   md5((const unsigned char *)target_password, (size_t)length, target_digest);
@@ -110,7 +84,7 @@ int main(int argc, char **argv) {
   printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
   printf("Cost model    : uniform\n");
   printf("Target MD5    : %s\n", target_hex);
-  printf("Threads       : %d (CILK_NWORKERS)\n", num_threads);
+  printf("Threads       : %d (set via CILK_NWORKERS env)\n", num_threads);
   printf("Design        : dynamic %d-task queue via cilk_for (Independent "
          "Local Heaps)\n",
          total_tasks);
@@ -124,7 +98,7 @@ int main(int argc, char **argv) {
    * Dynamically schedule prefix sub-tasks across available Cilk workers.
    * Each task uses an independent local heap to avoid synchronization overhead.
    */
-  cilk_for (int task_id = 0; task_id < total_tasks; task_id++) {
+  cilk_for(int task_id = 0; task_id < total_tasks; task_id++) {
     if (atomic_load(&g_found_flag))
       continue;
 

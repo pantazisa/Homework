@@ -210,7 +210,7 @@ The `scripts/` directory contains bash scripts to reproduce all experiment sweep
    ```bash
    ./scripts/run_all_astar.sh [output_directory]
    ```
-   Iterates through thread configurations ($1, 2, 4, 8, 16, 28, 32$) across single-technique targets and saves structured logs to `reports_astar/`.
+   Iterates through thread configurations ($1, 2, 4, 8, 16, 32$) across single-technique targets and saves structured logs to `reports_astar/`.
 
 2. **Hybrid Scaling Benchmark**:
    ```bash

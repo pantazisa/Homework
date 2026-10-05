@@ -17,8 +17,6 @@
 
 #define MAX_CHARSET_LEN 128
 
-
-
 typedef unsigned long long u64;
 
 static char g_charset[MAX_CHARSET_LEN];

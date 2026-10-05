@@ -12,20 +12,18 @@
 
 #define MAX_CHARSET_LEN 128
 
-
-
 typedef unsigned long long u64;
 
 static char g_charset[MAX_CHARSET_LEN];
 static int g_charset_len;
 static int g_char_to_idx[256];
 
-/* 
+/*
  * Uniform cost per character transition:
- * Note: Under uniform cost and h = length - depth, f(n) = g(n) + h(n) = length is
- * constant across nodes. The priority queue acts as a deeper-first tie-broken frontier
- * steering exploration directly toward leaves, while beam trimming acts as a protective
- * memory safety bound.
+ * Note: Under uniform cost and h = length - depth, f(n) = g(n) + h(n) = length
+ * is constant across nodes. The priority queue acts as a deeper-first
+ * tie-broken frontier steering exploration directly toward leaves, while beam
+ * trimming acts as a protective memory safety bound.
  */
 static const double EDGE_COST = 1.0;
 

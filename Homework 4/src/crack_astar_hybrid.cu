@@ -18,8 +18,6 @@
 #define THREADS_PER_BLOCK 256
 #define DEFAULT_BATCH_SIZE 65536ULL
 
-
-
 typedef unsigned long long u64;
 
 #define CUDA_CHECK(call)                                                       \
