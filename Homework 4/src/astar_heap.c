@@ -17,6 +17,15 @@ void heap_free(Heap *h) {
     h->data = NULL; 
 }
 
+/* 
+ * Priority ordering for A*:
+ * 1. Smaller f-value has higher priority.
+ * 2. Tie-breaker: If f is identical, prefer deeper nodes (larger depth).
+ *    In password recovery with uniform edge costs, f(n) = g(n) + h(n) = length,
+ *    so this tie-breaker steers exploration directly toward leaf verification,
+ *    keeping the active frontier compact. Beam trimming (BEAM_CAP) acts as a
+ *    protective memory bound.
+ */
 static inline int state_better(const State *a, const State *b) {
     if (a->f < b->f) return 1;
     if (a->f == b->f && a->depth > b->depth) return 1;
@@ -95,6 +104,12 @@ static void heapify(State *arr, int n) {
     for (int i = n / 2 - 1; i >= 0; i--) sift_down(arr, n, i); 
 }
 
+/* 
+ * Beam trimming: Keeps the queue size bounded by retaining the best BEAM_KEEP
+ * states using quickselect in expected O(n) time.
+ * Note: Trimming trades theoretical search completeness for strict memory
+ * guarantees, preventing combinatorial RAM exhaustion.
+ */
 void heap_trim_if_needed(Heap *h) {
     if (h->size <= BEAM_CAP) return;
     quickselect(h->data, 0, h->size - 1, BEAM_KEEP - 1);

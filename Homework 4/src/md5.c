@@ -36,7 +36,8 @@ void md5(const unsigned char *initial_msg, size_t initial_len, unsigned char *di
         0xf7537e82,0xbd3af235,0x2ad7d2bb,0xeb86d391
     };
 
-    /* Stack-allocated local block -- eliminates dynamic heap allocation */
+    /* Stack-allocated local block -- eliminates dynamic heap allocation.
+     * Note: Assumes little-endian byte ordering (standard for x86_64 and ARM). */
     unsigned char block[64] = {0};
     memcpy(block, initial_msg, initial_len);
     block[initial_len] = 0x80;
