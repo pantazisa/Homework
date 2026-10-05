@@ -32,7 +32,7 @@ In cryptographic hashing (MD5), the avalanche effect prevents measuring any cont
   - When the heap exceeds `BEAM_CAP = 3,000,000` states, an in-place `quickselect` trims the queue in expected $O(n)$ time, retaining only the best `BEAM_KEEP = 1,200,000` states before re-heapifying.
 * **Search Budgets & Strict Evaluation**:
   - `TIME_BUDGET_SECONDS`: 60.0 seconds maximum wall-clock search time.
-  - `NODE_BUDGET`: 30,000,000 nodes (35,000,000 in the Hybrid variant).
+  - `NODE_BUDGET`: 35,000,000 nodes (unified across all variants).
   - There is **no brute-force fallback**. If a target is not found within the search budget or beam retention, the program reports a genuine failure (`Password NOT recovered`).
 * **Goal Test & MD5 Hashing**:
   - For testing and benchmarking convenience, the CLI accepts the plaintext target password, validates its length and alphabet, and internally computes its 128-bit MD5 digest.
@@ -92,7 +92,7 @@ In cryptographic hashing (MD5), the avalanche effect prevents measuring any cont
 - **Heterogeneous Division of Labor**: Pointer-based graph traversal, priority queue updates, and heap operations are executed on the CPU, while compute-dense MD5 leaf verification is offloaded to the GPU.
 - **Batch Verification**: Leaf candidate strings are buffered into a contiguous host array.
 - **Kernel Dispatch**: Once the buffer fills (or `MAX_NODES_BETWEEN_FLUSHES = 200,000` is reached), candidates are transferred to the GPU via DMA and verified concurrently using an optimized MD5 CUDA device kernel.
-- `--threads BATCH_SIZE` controls the GPU buffer size (default: 1,048,576 candidates).
+- `--batch-size BATCH_SIZE` (or alias `--threads`) controls the GPU buffer size (default: 1,048,576 candidates).
 
 ### E. Hybrid Pthreads + CUDA (`crack_astar_hybrid.cu`)
 - Combines multi-threaded CPU dynamic task distribution with asynchronous GPU batch processing.
@@ -156,8 +156,8 @@ make clean
 # OpenCilk
 ./crack_astar_opencilk <length> <target_password> [--threads N]
 
-# Pure CUDA (Note: --threads specifies GPU batch size)
-./crack_astar_cuda <length> <target_password> [--threads BATCH_SIZE]
+# Pure CUDA (Note: --batch-size or legacy alias --threads specifies GPU batch size)
+./crack_astar_cuda <length> <target_password> [--batch-size BATCH_SIZE]
 
 # Hybrid Pthreads + CUDA
 ./crack_astar_hybrid <length> <target_password> [--threads N] [--batch-size BATCH_SIZE]
@@ -167,7 +167,7 @@ make clean
 | Parameter | Default Value | Description |
 |---|---|---|
 | `--threads` (CPU targets & Hybrid) | Hardware concurrency (`sysconf(_SC_NPROCESSORS_ONLN)`) | Number of worker threads. |
-| `--threads` (Pure CUDA) | `1,048,576` candidates | GPU verification batch capacity. |
+| `--batch-size` (Pure CUDA, alias: `--threads`) | `1,048,576` candidates | GPU verification batch capacity. |
 | `--batch-size` (Hybrid) | `65,536` candidates | Per-thread GPU verification batch capacity. |
 
 ### Shell Escaping Notice
@@ -194,7 +194,7 @@ make clean
 ./crack_astar_opencilk 4 'iEl(' --threads 8
 
 # Crack length-4 password using pure CUDA (262,144 batch size)
-./crack_astar_cuda 4 'PtYg' --threads 262144
+./crack_astar_cuda 4 'PtYg' --batch-size 262144
 
 # Crack challenging length-5 password using Hybrid (16 threads, 262,144 batch size)
 ./crack_astar_hybrid 5 'yJuq)' --threads 16 --batch-size 262144
