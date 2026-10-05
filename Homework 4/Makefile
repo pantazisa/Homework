@@ -53,11 +53,11 @@ crack_astar_opencilk: $(SRCDIR)/crack_astar_opencilk.c $(COMMON) $(HEADERS)
 # match your GPU's compute capability, e.g.:
 #   make crack_astar_cuda NVCC_ARCH=sm_86      (Ampere / RTX 30-series)
 #   make crack_astar_cuda NVCC_ARCH=sm_89      (Ada / RTX 40-series)
-crack_astar_cuda: $(SRCDIR)/crack_astar_cuda.cu $(COMMON)
+crack_astar_cuda: $(SRCDIR)/crack_astar_cuda.cu $(COMMON) $(HEADERS)
 	$(NVCC) $(NVCC_FLAGS) -o crack_astar_cuda $(SRCDIR)/crack_astar_cuda.cu $(COMMON)
 
 # Requires the CUDA toolkit, an NVIDIA GPU, and pthreads (-lpthread).
-crack_astar_hybrid: $(SRCDIR)/crack_astar_hybrid.cu $(COMMON)
+crack_astar_hybrid: $(SRCDIR)/crack_astar_hybrid.cu $(COMMON) $(HEADERS)
 	$(NVCC) $(NVCC_FLAGS) -o crack_astar_hybrid $(SRCDIR)/crack_astar_hybrid.cu $(COMMON) -lpthread
 
 clean:

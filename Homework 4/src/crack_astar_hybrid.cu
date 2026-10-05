@@ -393,8 +393,7 @@ int main(int argc, char **argv) {
     unsigned char target_digest[16];
     md5((const unsigned char *)target_password, (size_t)length, target_digest);
     char target_hex[33];
-    for (int i = 0; i < 16; i++) sprintf(target_hex + i * 2, "%02x", target_digest[i]);
-    target_hex[32] = '\0';
+    md5_to_hex(target_digest, target_hex);
 
     CUDA_CHECK(cudaMemcpyToSymbol(d_target_digest, target_digest, 16));
 
