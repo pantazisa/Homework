@@ -27,6 +27,7 @@ static const double EDGE_COST = 1.0;
 
 /* Global atomic flags and counters */
 static atomic_int g_found_flag = 0;
+static atomic_int g_budget_exceeded = 0;
 static char g_found_password[MAX_LEN + 1];
 static atomic_ullong g_total_nodes = 0;
 static atomic_ullong g_total_leaves = 0;
@@ -40,6 +41,22 @@ int main(int argc, char **argv) {
 
   int length = atoi(argv[1]);
   const char *target_password = argv[2];
+  int threads_cli = 0;
+
+  for (int i = 3; i < argc; i++) {
+    if (strcmp(argv[i], "--threads") == 0 && i + 1 < argc) {
+      threads_cli = atoi(argv[++i]);
+    }
+  }
+
+  /* --threads N takes precedence over CILK_NWORKERS. The OpenCilk runtime
+   * reads CILK_NWORKERS at its (lazy) first-use init, so exporting it here --
+   * before any cilk_for -- is the portable way to honor --threads. */
+  if (threads_cli > 0) {
+    char nw_buf[16];
+    snprintf(nw_buf, sizeof(nw_buf), "%d", threads_cli);
+    setenv("CILK_NWORKERS", nw_buf, 1);
+  }
 
   if (length <= 0 || length > MAX_LEN) {
     fprintf(stderr, "Error: length must be between 1 and %d\n", MAX_LEN);
@@ -70,6 +87,9 @@ int main(int argc, char **argv) {
   int num_threads = (nw_env && atoi(nw_env) > 0) ? atoi(nw_env)
                     : (int)sysconf(_SC_NPROCESSORS_ONLN);
   if (num_threads < 1) num_threads = 1;
+  const char *thread_src = threads_cli > 0 ? "--threads"
+                           : (nw_env && atoi(nw_env) > 0) ? "CILK_NWORKERS env"
+                           : "auto-detected";
 
   unsigned char target_digest[16];
   md5((const unsigned char *)target_password, (size_t)length, target_digest);
@@ -84,7 +104,7 @@ int main(int argc, char **argv) {
   printf("Charset       : %d symbols (fixed, not selectable)\n", g_charset_len);
   printf("Cost model    : uniform\n");
   printf("Target MD5    : %s\n", target_hex);
-  printf("Threads       : %d (set via CILK_NWORKERS env)\n", num_threads);
+  printf("Threads       : %d (%s)\n", num_threads, thread_src);
   printf("Design        : dynamic %d-task queue via cilk_for (Independent "
          "Local Heaps)\n",
          total_tasks);
@@ -99,7 +119,7 @@ int main(int argc, char **argv) {
    * Each task uses an independent local heap to avoid synchronization overhead.
    */
   cilk_for(int task_id = 0; task_id < total_tasks; task_id++) {
-    if (atomic_load(&g_found_flag))
+    if (atomic_load(&g_found_flag) || atomic_load(&g_budget_exceeded))
       continue;
 
     Heap heap;
@@ -165,8 +185,10 @@ int main(int argc, char **argv) {
         clock_gettime(CLOCK_MONOTONIC, &now);
         double elapsed =
             (now.tv_sec - t0.tv_sec) + (now.tv_nsec - t0.tv_nsec) / 1e9;
-        if (elapsed >= TIME_BUDGET_SECONDS)
+        if (elapsed >= TIME_BUDGET_SECONDS) {
+          atomic_store(&g_budget_exceeded, 1);
           break;
+        }
         if (atomic_load(&g_total_nodes) + local_nodes >= NODE_BUDGET)
           break;
       }

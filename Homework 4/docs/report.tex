@@ -57,7 +57,10 @@ OpenCilk, CUDA, and a Hybrid Pthreads\,+\,CUDA design. We study how wall-clock t
 size of the problem --- both with the password length $L$ and with the volume of candidates the
 search must process --- on a 28-core host with an NVIDIA RTX~4070~Ti~SUPER. Time grows essentially
 linearly with the number of candidates processed and multiplies by roughly the alphabet size for
-each additional character position; only the Hybrid CPU+GPU design keeps length-5 within budget.
+each additional character position. A single-threaded search cannot recover a length-5 target within
+the $60$\,s budget, but every parallel variant does once given enough workers (Pthreads from $2$
+threads, OpenMP/OpenCilk from $4$; pure CUDA completes at every tested batch size but is slowest),
+with the Hybrid CPU+GPU design the fastest overall.
 \end{abstract}
 
 \vspace{-0.3cm}
@@ -211,17 +214,21 @@ $68\%$ efficiency at 32 threads due to overhead and saturation.
 % ==================================================================
 Going from length 4 to length 5 adds one dimension and multiplies the worst-case candidate count by
 $76\times$. The effect on execution time is shown in Figure~\ref{fig:dims} (note the
-\emph{logarithmic} time axis): every
-variant except the Hybrid design --- including pure CUDA, whose single-threaded frontier expansion is
-the bottleneck --- recovers a length-4 target in well under a second but fails to finish length 5
-within the 60\,s budget. Only the Hybrid design absorbs the extra dimension, by overlapping
-multi-threaded frontier expansion with asynchronous GPU leaf-verification.
+\emph{logarithmic} time axis). At length 4 every variant recovers the target in well under a second.
+At length 5 the picture splits by \emph{degree of parallelism}, not by paradigm: the single-threaded
+Sequential search exhausts the $60$\,s budget, whereas each parallel variant recovers the target once
+it has enough workers --- Pthreads already at $2$ threads, OpenMP and OpenCilk from $4$, while pure
+CUDA completes at every tested batch size (slowest of all). The Hybrid design is simply the fastest, overlapping
+multi-threaded frontier expansion with asynchronous GPU leaf-verification; it is not the only variant
+that completes length 5. These length-5 numbers are all for target \texttt{yJuq)}
+(Table~\ref{tab:len5sweep}); completion at length 5 is target-dependent, so a harder target can still
+drive the low-thread CPU runs to the budget wall.
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
-  width=0.82\textwidth, height=4.8cm,
+  width=0.82\textwidth, height=4.0cm,
   xlabel={Number of dimensions (password length $L$)},
   ylabel={Execution time (s, log)}, ymode=log,
   xtick={4,5}, xmin=3.7, xmax=5.3,
@@ -230,34 +237,67 @@ multi-threaded frontier expansion with asynchronous GPU leaf-verification.
   legend style={font=\tiny, at={(1.02,1.0)}, anchor=north west, draw=none},
   ymin=0.04, ymax=120,
 ]
-% Hybrid 16 threads: L4 PtYg=0.097 ; L5 = mean of 4 targets (2.322,1.289,6.554,6.935)->4.275
-\addplot[mark=*,mark size=2pt,color=teal!70!black,thick] coordinates {(4,0.097) (5,4.275)};
-% Pthreads (32 thr): L4 PtYg=0.097 ; L5 DNF (budget) -> 60 (cap)
-\addplot[mark=square*,mark size=2pt,color=blue!70!black,thick,densely dashed] coordinates {(4,0.097) (5,60)};
-% OpenCilk (32 thr): L4 PtYg=0.068 ; L5 DNF -> 60
-\addplot[mark=diamond*,mark size=2.4pt,color=violet!75!black,thick,densely dashed] coordinates {(4,0.068) (5,60)};
-% CUDA (batch 262144): L4 PtYg=0.130 ; L5 DNF -> 60
-\addplot[mark=pentagon*,mark size=2.2pt,color=red!70!black,thick,densely dashed] coordinates {(4,0.130) (5,60)};
-% Sequential: L4 PtYg=0.362 ; L5 DNF -> 60
+% Hybrid 16 threads: L4 PtYg=0.100 (hybrid_report.txt random_a) ; L5 yJuq) batch 262144 = 2.358
+\addplot[mark=*,mark size=2pt,color=teal!70!black,thick] coordinates {(4,0.100) (5,2.358)};
+% Pthreads (32 thr): L4 PtYg=0.097 ; L5 yJuq) = 4.70 (found)
+\addplot[mark=square*,mark size=2pt,color=blue!70!black,thick] coordinates {(4,0.097) (5,4.70)};
+% OpenCilk (32 thr): L4 PtYg=0.068 ; L5 yJuq) = 4.08 (found)
+\addplot[mark=diamond*,mark size=2.4pt,color=violet!75!black,thick] coordinates {(4,0.068) (5,4.08)};
+% CUDA (batch 262144): L4 PtYg=0.130 ; L5 yJuq) = 55.39 (found)
+\addplot[mark=pentagon*,mark size=2.2pt,color=red!70!black,thick] coordinates {(4,0.130) (5,55.39)};
+% Sequential: L4 PtYg=0.362 ; L5 yJuq) DNF -> 60.046 (budget cap)
 \addplot[mark=triangle*,mark size=2.4pt,color=orange!85!black,thick,densely dashed] coordinates {(4,0.362) (5,60)};
 \legend{Hybrid (16 thr), Pthreads (32 thr), OpenCilk (32 thr), CUDA (262k), Sequential}
 \end{axis}
 \end{tikzpicture}
-\caption{Execution time vs.\ number of dimensions (log time axis). One added dimension is a
-$76\times$ growth in the search space. All variants except Hybrid --- Sequential, Pthreads,
-OpenCilk and pure CUDA --- hit the 60\,s budget at length 5 (dashed, plotted at the cap; recovery
-fails), while the Hybrid design stays in the low-single-digit seconds. Length-4 points use target
-\texttt{PtYg}; the length-5 Hybrid point is the mean over four targets.}
+\caption{Execution time vs.\ number of dimensions (log time axis), length-5 target \texttt{yJuq)}
+(length-4 points use \texttt{PtYg}). One added dimension is a $76\times$ growth in the search space.
+Only the single-threaded Sequential search hits the 60\,s budget at length 5 (dashed, plotted at the
+cap; recovery fails). Every parallel variant recovers the target: Pthreads and OpenCilk in a few
+seconds at 32 threads, pure CUDA in $\approx\!55$\,s at a $262{,}144$ batch, and the Hybrid design
+fastest at $\approx\!2.4$\,s (16 threads, $262{,}144$ batch).}
 \label{fig:dims}
 \end{figure}
+
+\vspace{-0.2cm}
+\paragraph{Length-5 thread scaling (CPU variants).} Table~\ref{tab:len5sweep} gives the full
+thread sweep on \texttt{yJuq)}. Every variant DNFs at $1$ thread, but the CPU-parallel ones recover
+as soon as a few workers share the search (Pthreads at $2$, OpenMP/OpenCilk at $4$); time then falls
+roughly linearly --- Pthreads from $49.6$\,s to $4.7$\,s ($2\!\to\!32$ threads) --- with noise from
+\emph{when} a worker hits the target leaf. Pure CUDA stays slowest and essentially flat across batch
+sizes ($54.8\!\to\!51.9$\,s for a $64\times$ larger batch): the serial CPU frontier, not GPU hashing,
+starves the device, so a bigger batch barely helps.
+
+\begin{table}[H]
+\centering
+\caption{Length-5 wall-clock time (s) on target \texttt{yJuq)} (budget $60$\,s; ``DNF'' = budget
+exhausted before recovery). Columns are CPU worker threads. Sequential is single-threaded; CUDA and
+Hybrid are reported below the table since their knob is the GPU batch size.}
+\label{tab:len5sweep}
+\small
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+\textbf{Variant} & \textbf{1} & \textbf{2} & \textbf{4} & \textbf{8} & \textbf{16} & \textbf{32} \\
+\midrule
+Pthreads & DNF & 49.59 & 24.45 & 12.20 & 7.50 & 4.70 \\
+OpenMP   & DNF & DNF   & 42.84 & 26.10 & 15.10 & 8.73 \\
+OpenCilk & DNF & DNF   & 22.10 & 2.92 & 21.51 & 4.08 \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Sequential}: DNF (single-threaded, $60.00$\,s cap).}\\
+\multicolumn{7}{@{}l}{\emph{CUDA} (GPU batch, all \emph{found}): $65{,}536$ $54.76$; $262{,}144$ $55.39$; $1{,}048{,}576$ $52.45$; $4{,}194{,}304$ $51.91$.}\\
+\multicolumn{7}{@{}l}{\emph{Hybrid} ($16$ thr, batch $262{,}144$): $2.36$ --- fastest overall (cf.\ Table~\ref{tab:hyb5}).}\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \vspace{-0.2cm}
 \paragraph{Hybrid at length 5.} Table~\ref{tab:hyb5} sweeps the GPU batch size at 16 threads for the
 four length-5 targets. All are recovered. Larger batches amortize kernel-launch overhead over more
 candidates per launch, cutting both launch count and time; the knee sits around
-$262{,}144$--$1{,}048{,}576$. The CPU-only variants (and the Hybrid at a single thread) exhaust the
-budget here, so the longer target is unlocked specifically by CPU+GPU cooperation, not by GPU
-offloading alone.
+$262{,}144$--$1{,}048{,}576$. At a single thread the Hybrid exhausts the budget just like the other
+variants; its advantage is that, once threads cooperate, it reaches recovery faster than any CPU-only
+variant (e.g.\ $2.4$\,s vs.\ Pthreads' $4.7$\,s on \texttt{yJuq)}) by overlapping CPU frontier
+expansion with asynchronous GPU verification.
 
 \begin{table}[H]
 \centering
@@ -270,24 +310,19 @@ offloading alone.
 \textbf{Target} & \textbf{Batch} & \textbf{Time (s)} & \textbf{Nodes} \\
 \midrule
 \multirow{4}{*}{yJuq)}
- & 16\,384   & 2.914 & 10\,866\,295 & \multirow{4}{*}{(K5cq} & 16\,384   & 8.005 & 31\,331\,640 \\
- & 65\,536   & 2.431 & 10\,878\,084 &                        & 65\,536   & 6.836 & 31\,383\,225 \\
- & 262\,144  & 2.322 & 10\,903\,192 &                        & 262\,144  & 6.554 & 31\,360\,143 \\
- & 1\,048\,576 & 2.328 & 10\,947\,245 &                      & 1\,048\,576 & 6.522 & 31\,503\,116 \\
+ & 16\,384   & 3.056 & 10\,857\,302 & \multirow{4}{*}{(K5cq} & 16\,384   & 8.522 & 31\,350\,410 \\
+ & 65\,536   & 2.433 & 10\,880\,545 &                        & 65\,536   & 6.937 & 31\,383\,357 \\
+ & 262\,144  & 2.358 & 10\,911\,899 &                        & 262\,144  & 6.814 & 31\,381\,106 \\
+ & 1\,048\,576 & 2.350 & 10\,994\,144 &                      & 1\,048\,576 & 6.922 & 31\,458\,800 \\
 \midrule
 \multirow{4}{*}{ntG0y}
- & 16\,384   & 1.555 & 5\,907\,112 & \multirow{4}{*}{=e!4f}  & 16\,384   & 8.595 & 32\,953\,449 \\
- & 65\,536   & 1.318 & 5\,910\,361 &                         & 65\,536   & 7.179 & 32\,948\,742 \\
- & 262\,144  & 1.289 & 5\,920\,987 &                         & 262\,144  & 6.935 & 32\,964\,065 \\
- & 1\,048\,576 & 1.324 & 5\,916\,686 &                       & 1\,048\,576 & 6.911 & 33\,017\,988 \\
+ & 16\,384   & 1.683 & 5\,896\,277 & \multirow{4}{*}{=e!4f}  & 16\,384   & 9.242 & 32\,983\,733 \\
+ & 65\,536   & 1.383 & 5\,910\,865 &                         & 65\,536   & 7.394 & 32\,987\,203 \\
+ & 262\,144  & 1.315 & 5\,920\,023 &                         & 262\,144  & 7.155 & 32\,953\,977 \\
+ & 1\,048\,576 & 1.349 & 6\,003\,289 &                       & 1\,048\,576 & 7.279 & 33\,120\,763 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\paragraph{Hybrid thread scaling.} At length 5 (target \texttt{(K5cq}, batch $65{,}536$) the Hybrid
-time falls from 60\,s (1 thread, budget exceeded) to 6.9\,s (16 threads), i.e.\ adding threads lets
-more candidates be streamed to the GPU concurrently; beyond 16 threads contention for the single
-GPU limits further gains.
 
 % ==================================================================
 \section{Discussion and Conclusion}
@@ -298,23 +333,26 @@ work across cores, with super-linear speedups when a worker reaches the target l
 \textbf{Length.} Each added character multiplies the search space by the alphabet size
 (76$\times$), which is why length 4 is trivial for the CPU but length 5 saturates it
 (Fig.~\ref{fig:dims}). \textbf{Where the GPU pays off.} At length 4 pure CUDA rarely beats a
-well-parallelized CPU because the bottleneck is CPU-side frontier expansion, not hashing; the GPU
-only wins when the leaf-verification volume is huge --- exactly the length-5 regime. \textbf{Batch
+well-parallelized CPU because the bottleneck is CPU-side frontier expansion, not hashing; at length 5
+pure CUDA does recover the target but remains the slowest of the completing variants ($\approx\!52$--$55$\,s
+on \texttt{yJuq)}), since its single-threaded frontier, not the hashing, is the limit --- which is
+exactly what the Hybrid design fixes by expanding the frontier on many CPU threads at once.
+\textbf{Batch
 size.} Small batches ($16{,}384$) drown in launch overhead; $262{,}144$--$1{,}048{,}576$ minimize
 launches per candidate and give the best time. \textbf{Oversubscription.} At 32 threads several
 Hybrid cases show a jump in nodes and time as GPU contention and frontier divergence outweigh added
 CPU parallelism.
 
 \medskip
-\noindent In summary, all six implementations are correct and reproducible. Time scales linearly
-with the number of candidates processed and multiplicatively with the password length; on length 4
-the CPU parallel variants reach $\approx21\times$ speedup (Pthreads, 32 threads), while the decisive
-result at length 5 is that only the Hybrid Pthreads\,+\,CUDA design extends the search into a space
-where every CPU-only implementation fails --- confirming that heterogeneous CPU+GPU cooperation is
-what unlocks the harder, larger regime.
+\noindent In summary, all six implementations are correct and reproducible. Time scales linearly with
+candidate volume and multiplicatively with length; at length 4 the CPU variants reach
+$\approx21\times$ speedup (Pthreads, 32 threads). At length 5 the decisive factor is the degree of
+parallelism, not the paradigm: a single thread exhausts the budget while every parallel variant
+recovers the target, with the Hybrid design fastest ($\approx\!2.4$\,s vs.\ $\approx\!4.1$\,s for the best
+CPU-only variant on \texttt{yJuq)}).
 
 \vspace{0.4em}
 \noindent\textbf{You can find all the necessary files for this project on this GitHub repository:} \\
-\url{https://github.com/pantazisa/Homework}
+\url{https://github.com/pantazisa/Homework/tree/main/Homework%204}
 
 \end{document}

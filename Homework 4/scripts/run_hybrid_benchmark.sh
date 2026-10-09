@@ -33,12 +33,17 @@ LENGTH4_CASES=(
     "random_f:4:2h-p"
 )
 
-# Length 5 test cases
+# Length 5 test cases (identical set to run_all_astar.sh, so Hybrid numbers
+# stay directly comparable, target-for-target, against the other variants).
 LENGTH5_CASES=(
     "len5_a:5:yJuq)"
     "len5_b:5:ntG0y"
     "len5_c:5:(K5cq"
     "len5_d:5:=e!4f"
+    "len5_e:5:Rb8!x"
+    "len5_f:5:9mZ_q"
+    "len5_g:5:Tk3@w"
+    "len5_h:5:pL0#v"
 )
 
 THREAD_COUNTS=(1 2 4 8 16 32)

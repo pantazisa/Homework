@@ -18,7 +18,10 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 OUT_DIR="${1:-reports_astar}"
 mkdir -p "$OUT_DIR"
 
-# Predefined length-4 benchmark test cases
+# Predefined length-4 and length-5 benchmark test cases.
+# The length-5 targets are identical to those swept by run_hybrid_benchmark.sh
+# (len5_a..len5_d), so the non-Hybrid numbers here are directly comparable,
+# thread-for-thread, against the Hybrid length-5 results.
 TEST_CASES=(
     "random_a:4:PtYg"
     "random_b:4:j&mU"
@@ -26,6 +29,14 @@ TEST_CASES=(
     "random_d:4:el31"
     "random_e:4:iEl("
     "random_f:4:2h-p"
+    "len5_a:5:yJuq)"
+    "len5_b:5:ntG0y"
+    "len5_c:5:(K5cq"
+    "len5_d:5:=e!4f"
+    "len5_e:5:Rb8!x"
+    "len5_f:5:9mZ_q"
+    "len5_g:5:Tk3@w"
+    "len5_h:5:pL0#v"
 )
 
 # Thread counts and GPU batch sizes for benchmarks

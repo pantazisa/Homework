@@ -24,6 +24,7 @@ static int g_charset_len;
 static int g_char_to_idx[256];
 
 static atomic_int g_found_flag = 0;
+static atomic_int g_budget_exceeded = 0;
 static char g_found_password[MAX_LEN + 1];
 
 /* Uniform cost per character transition */
@@ -109,10 +110,14 @@ static void process_task(ThreadArg *arg, int task_id, int root_depth) {
       clock_gettime(CLOCK_MONOTONIC, &now);
       double elapsed_so_far = (now.tv_sec - g_search_start.tv_sec) +
                               (now.tv_nsec - g_search_start.tv_nsec) / 1e9;
-      if (elapsed_so_far >= TIME_BUDGET_SECONDS)
+      if (elapsed_so_far >= TIME_BUDGET_SECONDS) {
+        atomic_store(&g_budget_exceeded, 1);
         return;
-      if (total_now >= NODE_BUDGET)
+      }
+      if (total_now >= NODE_BUDGET) {
+        atomic_store(&g_budget_exceeded, 1);
         return;
+      }
       if (atomic_load(&g_found_flag))
         return;
     }
@@ -205,7 +210,7 @@ int main(int argc, char **argv) {
   omp_set_num_threads(num_threads);
 #pragma omp parallel for schedule(dynamic, 1)
   for (int task_id = 0; task_id < total_tasks; task_id++) {
-    if (!atomic_load(&g_found_flag)) {
+    if (!atomic_load(&g_found_flag) && !atomic_load(&g_budget_exceeded)) {
       process_task(&args[omp_get_thread_num()], task_id, root_depth);
     }
   }
